@@ -60,9 +60,9 @@ defmodule Double do
   You can stub the same function with different args and return values.
   ```elixir
   double = double
-  |> allow(:example, with: [1], returns: [1])
-  |> allow(:example, with: [2], returns: [2])
-  |> allow(:example, with: [3], returns: [3])
+  |> allow(:example, with: [1], returns: 1)
+  |> allow(:example, with: [2], returns: 2)
+  |> allow(:example, with: [3], returns: 3)
 
   double.example.(1) # 1
   double.example.(2) # 2
@@ -72,8 +72,8 @@ defmodule Double do
   You can stub the same function with the same args and different return values on subsequent calls.
   ```elixir
   double = double
-  |> allow(:example, with: [1], returns: [1])
-  |> allow(:example, with: [1], returns: [2])
+  |> allow(:example, with: [1], returns: 1)
+  |> allow(:example, with: [1], returns: 2)
 
   double.example.(1) # 2 the last setup is the first one to return
   double.example.(1) # 1
