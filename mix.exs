@@ -7,6 +7,8 @@ defmodule Double.Mixfile do
      elixir: "~> 1.3",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
+     description: description(),
+     package: package(),
      deps: deps()]
   end
 
@@ -28,5 +30,22 @@ defmodule Double.Mixfile do
   # Type "mix help deps" for more examples and options
   defp deps do
     []
+  end
+
+  defp description do
+    """
+    Double is a simple library to help build injectable dependencies for your tests.
+    It does NOT override behavior of existing modules or functions.
+    """
+  end
+
+  defp package do
+    [# These are the default files included in the package
+     name: :double,
+     files: ["lib", "priv", "mix.exs", "README*", "LICENSE*"],
+     maintainers: ["Brandon Joyce"],
+     licenses: ["MIT"],
+     links: %{"GitHub" => "https://github.com/sonerdy/double",
+      "Docs" => "https://github.com/sonerdy/double"}]
   end
 end
