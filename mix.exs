@@ -3,7 +3,7 @@ defmodule Double.Mixfile do
 
   def project do
     [app: :double,
-     version: "0.1.0",
+     version: "0.1.2",
      elixir: "~> 1.3",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
@@ -29,7 +29,9 @@ defmodule Double.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    []
+    [
+      {:ex_doc, ">= 0.0.0", only: :dev}
+    ]
   end
 
   defp description do
@@ -42,7 +44,7 @@ defmodule Double.Mixfile do
   defp package do
     [# These are the default files included in the package
      name: :double,
-     files: ["lib", "priv", "mix.exs", "README*", "LICENSE*"],
+     files: ["lib", "mix.exs", "README*", "LICENSE*"],
      maintainers: ["Brandon Joyce"],
      licenses: ["MIT"],
      links: %{"GitHub" => "https://github.com/sonerdy/double",

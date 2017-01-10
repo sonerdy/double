@@ -15,14 +15,6 @@ If [available in Hex](https://hex.pm/docs/publish), the package can be installed
     end
     ```
 
-  2. Ensure `double` is started before your application:
-
-    ```elixir
-    def application do
-      [applications: [:double]]
-    end
-    ```
-
 ## Usage
 
 The first step is to make sure the function you want to test will have it's dependencies injected.

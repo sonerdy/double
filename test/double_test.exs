@@ -1,7 +1,6 @@
 defmodule DoubleTest do
   use ExUnit.Case, async: false
   import Double
-  doctest Double
 
   describe "double" do
     test "creates a map" do
