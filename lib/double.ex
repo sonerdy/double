@@ -69,15 +69,14 @@ defmodule Double do
   double.example.(3) # 3
   ```
 
-  You can stub the same function with the same args and different return values on subsequent calls.
+  You can stub the same function/args to return different results on subsequent calls
   ```elixir
   double = double
-  |> allow(:example, with: [1], returns: 1)
-  |> allow(:example, with: [1], returns: 2)
+  |> allow(:example, with: [1], returns: 1, returns: 2)
 
-  double.example.(1) # 2 the last setup is the first one to return
   double.example.(1) # 1
-  double.example.(1) # 1 continues to return 1 until more return values are configured
+  double.example.(1) # 2
+  double.example.(1) # 2
   ```
 
   """
@@ -130,7 +129,7 @@ defmodule Double do
     end)
     dbl = dbl
     |> put_in([:_double, :stubs], stubs)
-    |> Map.merge(%{function_name => stub_function(dbl._double.pid, function_name, args)})
+    |> put_in([function_name], stub_function(dbl._double.pid, function_name, args))
     {:reply, dbl, dbl}
   end
 
@@ -141,13 +140,12 @@ defmodule Double do
   end
 
   defp matching_stubs(stubs, function_name, args) do
-    stubs |> Enum.filter(fn(stub) ->
-      case stub do
-        {^function_name, ^args, _return_value} -> true
-        {^function_name, {:any, _arity}, _return_value} -> true
-        _ -> false
-      end
-    end)
+    Enum.filter(stubs, fn(stub) -> matching_stub?(stub, function_name, args) end)
+  end
+
+  defp matching_stub?(stub, function_name, args) do
+    match?({^function_name, ^args, _return_value}, stub) ||
+    match?({^function_name, {:any, _arity}, _return_value}, stub)
   end
 
   defp stub_function(pid, function_name, allowed_arguments) do
