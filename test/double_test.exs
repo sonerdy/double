@@ -26,13 +26,21 @@ defmodule DoubleTest do
     end
 
     test "allows subsequent calls to return new values" do
-      inject = allow(double(), :process, with: [1,2,3], returns: 1)
-      |> allow(:process, with: [1,2,3], returns: 2)
-      |> allow(:process, with: [1,2,3], returns: 3)
-      assert inject.process.(1, 2, 3) == 3
+      inject = allow(double(), :process,
+        with: [1,2,3],
+        returns: 1,
+        returns: 2,
+        returns: 3
+      )
+      assert inject.process.(1, 2, 3) == 1
       assert inject.process.(1, 2, 3) == 2
-      assert inject.process.(1, 2, 3) == 1
-      assert inject.process.(1, 2, 3) == 1
+      assert inject.process.(1, 2, 3) == 3
+      assert inject.process.(1, 2, 3) == 3
+    end
+
+    test "no return value is nil" do
+      inject = allow(double(), :process, with: [1,2,3])
+      assert inject.process.(1, 2, 3) == nil
     end
 
     test "allows any arguments" do

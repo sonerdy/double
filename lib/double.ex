@@ -85,62 +85,63 @@ defmodule Double do
 
   def double do
     current = self()
-    state = %{_parent_pid: current, _pid: nil, _stubs: %{}}
+    state = %{_double: %{pid: nil, stubs: []}}
     {:ok, pid} = GenServer.start_link(__MODULE__, state)
     GenServer.call(pid, {:set_pid, pid})
   end
 
-  def allow(dbl, function_name, [with: args, returns: return_value]) do
-    GenServer.call(dbl._pid, {:allow, function_name, args, return_value})
+  def allow(dbl, function_name, opts) when is_list(opts) do
+    return_values = Enum.reduce(opts, [], fn({k, v}, acc) ->
+      case k do
+        :returns -> acc ++ [v]
+        _ -> acc
+      end
+    end)
+    return_values = if return_values == [], do: [nil], else: return_values
+    args = opts[:with]
+    GenServer.call(dbl._double.pid, {:allow, function_name, args, return_values})
   end
 
   @doc false
   def handle_call({:pop_function, function_name, given_args}, _from, dbl) do
-    stubs_data = Map.get(dbl._stubs, function_name)
-    reversed_stubs = Enum.reverse(stubs_data)
-    stub_data = Enum.find(reversed_stubs, fn({arg_pattern, _return_value}) ->
-      case arg_pattern do
-        {:any, _arity} -> true
-        ^given_args -> true
+    %{_double: %{stubs: stubs}} = dbl
+    matching_stubs = stubs |> Enum.filter(fn(stub) ->
+      case stub do
+        {^function_name, ^given_args, _return_value} -> true
+        {^function_name, {:any, _arity}, _return_value} -> true
         _ -> false
       end
     end)
-
-    return_value = case stub_data do
-      nil -> raise "Double not setup with #{function_name}(#{inspect given_args}). Available patterns/return values: #{inspect stubs_data}"
-      {_arg_pattern, return_value} -> return_value
-    end
-
-    case Enum.count(stubs_data) do
-      1 -> {:reply, return_value, dbl}
-      _ ->
-        new_stubs_data = List.delete(stubs_data, stub_data)
-        new_dbl = %{dbl | _stubs: Map.merge(dbl._stubs, %{function_name => new_stubs_data})}
+    case matching_stubs do
+      [stub | other_matching_stubs] ->
+        # remove this stub from stack only if it's not the only matching one
+        stubs = if Enum.empty?(other_matching_stubs) do
+          stubs
+        else
+          List.delete(stubs, stub)
+        end
+        new_dbl = put_in(dbl, [:_double, :stubs], stubs)
+        {_, _, return_value} = stub
         {:reply, return_value, new_dbl}
+      [] -> {:reply, nil, dbl}
     end
   end
 
   @doc false
-  def handle_call({:allow, function_name, allowed_args, return_value}, _from, dbl) do
-    dbl = case dbl do
-      %{_stubs: %{^function_name => stub_data}} when is_list(stub_data) ->
-        %{
-          dbl | _stubs: Map.merge(
-            dbl._stubs, %{function_name => stub_data ++ [{allowed_args, return_value}]}
-          )
-        }
-      _ ->
-        function_data = %{function_name => [{allowed_args, return_value}]}
-        result = %{dbl | _stubs: Map.merge(dbl._stubs, function_data)}
-        result =  Map.merge(result, %{function_name => stub_function(dbl._pid, function_name, allowed_args)})
-        result
-    end
+  def handle_call({:allow, function_name, allowed_args, return_values}, _from, dbl) do
+    %{_double: %{stubs: stubs}} = dbl
+    stubs = stubs ++ Enum.map(return_values, fn(return_value) ->
+      {function_name, allowed_args, return_value}
+    end)
+    dbl = dbl
+    |> put_in([:_double, :stubs], stubs)
+    |> Map.merge(%{function_name => stub_function(dbl._double.pid, function_name, allowed_args)})
     {:reply, dbl, dbl}
   end
 
   @doc false
   def handle_call({:set_pid, pid}, _from, dbl) do
-    dbl = %{dbl | _pid: pid}
+    dbl = put_in(dbl, [:_double, :pid], pid)
     {:reply, dbl, dbl}
   end
 
