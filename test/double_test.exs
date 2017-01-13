@@ -2,9 +2,17 @@ defmodule DoubleTest do
   use ExUnit.Case, async: false
   import Double
 
+  defmodule TestStruct do
+    defstruct io_puts: &IO.puts/1, sleep: &:timer.sleep/1
+  end
+
   describe "double" do
     test "creates a map" do
       assert is_map(double) == true
+    end
+
+    test "can return structs" do
+      {%TestStruct{}} = {double(%TestStruct{})}
     end
   end
 
@@ -77,6 +85,22 @@ defmodule DoubleTest do
       |> allow(:process, with: [1], returns: 2)
       assert inject.process.(1) == 2
       assert inject.process.(1) == 2
+    end
+  end
+
+  describe "using structs" do
+    test "allow can stub a function for a struct", inject \\ %TestStruct{} do
+      inject = double(inject)
+      |> allow(:io_puts, with: ["hello world"], returns: :ok)
+      assert inject.io_puts.("hello world") == :ok
+    end
+
+    test "stubbing a struct with an unknown key fails" do
+      assert_raise ArgumentError, "The struct Elixir.DoubleTest.TestStruct does not contain key: boom. Use a Map if you want to add dynamic function names.", fn ->
+        inject = double(%TestStruct{})
+        |> allow(:boom, with: [1], returns: :ok)
+        assert inject.boom.(1) == :ok
+      end
     end
   end
 end

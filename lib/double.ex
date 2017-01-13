@@ -79,16 +79,36 @@ defmodule Double do
   double.example.(1) # 2
   ```
 
+  Use a struct if you want to verify the keys being stubbed.
+
+  ```elixir
+  double = double(%MyStruct{})
+  |> allow(:example, with: ["hello"], returns: "world")
+  ```
+
   """
   use GenServer
 
   def double do
-    state = %{_double: %{pid: nil, stubs: []}}
-    {:ok, pid} = GenServer.start_link(__MODULE__, state)
-    GenServer.call(pid, {:set_pid, pid})
+    {:ok, _pid} = GenServer.start_link(__MODULE__, [], name: __MODULE__)
+    %{}
+  end
+  def double(struct) do
+    {:ok, _pid} = GenServer.start_link(__MODULE__, [], name: __MODULE__)
+    struct
   end
 
   def allow(dbl, function_name, opts) when is_list(opts) do
+    case dbl do
+      %{__struct__: _} ->
+        case Enum.member?(Map.keys(dbl), function_name) do
+          true -> do_allow(dbl, function_name, opts)
+          false -> struct_key_error(dbl, function_name)
+        end
+      _ -> do_allow(dbl, function_name, opts)
+    end
+  end
+  def do_allow(dbl, function_name, opts) when is_list(opts) do
     return_values = Enum.reduce(opts, [], fn({k, v}, acc) ->
       case k do
         :returns -> acc ++ [v]
@@ -97,12 +117,16 @@ defmodule Double do
     end)
     return_values = if return_values == [], do: [nil], else: return_values
     args = opts[:with]
-    GenServer.call(dbl._double.pid, {:allow, function_name, args, return_values})
+    GenServer.call(__MODULE__, {:allow, dbl, function_name, args, return_values})
+  end
+
+  defp struct_key_error(dbl, key) do
+    msg = "The struct #{dbl.__struct__} does not contain key: #{key}. Use a Map if you want to add dynamic function names."
+    raise ArgumentError, message: msg
   end
 
   @doc false
-  def handle_call({:pop_function, function_name, args}, _from, dbl) do
-    %{_double: %{stubs: stubs}} = dbl
+  def handle_call({:pop_function, function_name, args}, _from, stubs) do
     matching_stubs = matching_stubs(stubs, function_name, args)
     case matching_stubs do
       [stub | other_matching_stubs] ->
@@ -112,31 +136,21 @@ defmodule Double do
         else
           List.delete(stubs, stub)
         end
-        new_dbl = put_in(dbl, [:_double, :stubs], stubs)
         {_, _, return_value} = stub
-        {:reply, return_value, new_dbl}
-      [] -> {:reply, nil, dbl}
+        {:reply, return_value, stubs}
+      [] -> {:reply, nil, stubs}
     end
   end
 
   @doc false
-  def handle_call({:allow, function_name, args, return_values}, _from, dbl) do
-    %{_double: %{stubs: stubs}} = dbl
+  def handle_call({:allow, dbl, function_name, args, return_values}, _from, stubs) do
     matching_stubs = matching_stubs(stubs, function_name, args)
     stubs = stubs |> Enum.reject(fn(stub) -> Enum.member?(matching_stubs, stub) end)
     stubs = stubs ++ Enum.map(return_values, fn(return_value) ->
       {function_name, args, return_value}
     end)
-    dbl = dbl
-    |> put_in([:_double, :stubs], stubs)
-    |> put_in([function_name], stub_function(dbl._double.pid, function_name, args))
-    {:reply, dbl, dbl}
-  end
-
-  @doc false
-  def handle_call({:set_pid, pid}, _from, dbl) do
-    dbl = put_in(dbl, [:_double, :pid], pid)
-    {:reply, dbl, dbl}
+    dbl = put_in(dbl, [Access.key(function_name)], stub_function(function_name, args))
+    {:reply, dbl, stubs}
   end
 
   defp matching_stubs(stubs, function_name, args) do
@@ -148,7 +162,7 @@ defmodule Double do
     match?({^function_name, {:any, _arity}, _return_value}, stub)
   end
 
-  defp stub_function(pid, function_name, allowed_arguments) do
+  defp stub_function(function_name, allowed_arguments) do
     arity = case allowed_arguments do
       {:any, arity} -> arity
       _ -> Enum.count(allowed_arguments)
@@ -158,31 +172,31 @@ defmodule Double do
     case arity do
       0 -> fn ->
         send(self(), function_name)
-        GenServer.call(pid, {:pop_function, function_name, []})
+        GenServer.call(__MODULE__, {:pop_function, function_name, []})
       end
       1 -> fn(a) ->
         send(self(), {function_name, a})
-        GenServer.call(pid, {:pop_function, function_name, [a]})
+        GenServer.call(__MODULE__, {:pop_function, function_name, [a]})
       end
       2 -> fn(a,b) ->
         send(self(), {function_name, a, b})
-        GenServer.call(pid, {:pop_function, function_name, [a,b]})
+        GenServer.call(__MODULE__, {:pop_function, function_name, [a,b]})
       end
       3 -> fn(a,b,c) ->
         send(self(), {function_name, a, b, c})
-        GenServer.call(pid, {:pop_function, function_name, [a,b,c]})
+        GenServer.call(__MODULE__, {:pop_function, function_name, [a,b,c]})
       end
       4 -> fn(a,b,c,d) ->
         send(self(), {function_name, a, b, c, d})
-        GenServer.call(pid, {:pop_function, function_name, [a,b,c,d]})
+        GenServer.call(__MODULE__, {:pop_function, function_name, [a,b,c,d]})
       end
       5 -> fn(a,b,c,d,e) ->
         send(self(), {function_name, a, b, c, d, e})
-        GenServer.call(pid, {:pop_function, function_name, [a,b,c,d,e]})
+        GenServer.call(__MODULE__, {:pop_function, function_name, [a,b,c,d,e]})
       end
       6 -> fn(a,b,c,d,e,f) ->
         send(self(), {function_name, a, b, c, d, e, f})
-        GenServer.call(pid, {:pop_function, function_name, [a,b,c,d,e,f]})
+        GenServer.call(__MODULE__, {:pop_function, function_name, [a,b,c,d,e,f]})
       end
     end
   end
