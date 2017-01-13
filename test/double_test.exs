@@ -86,6 +86,24 @@ defmodule DoubleTest do
       assert inject.process.(1) == 2
       assert inject.process.(1) == 2
     end
+
+    test "keeps existing data in maps between stub calls" do
+      inject = double(%{im_here: 1})
+      |> allow(:process, with: [], returns: 1)
+      |> put_in([:dont_kill_me], 1)
+      |> allow(:hello, with: [], returns: "world")
+      assert inject.dont_kill_me == 1
+      assert inject.im_here == 1
+      assert inject.process.() == 1
+      assert inject.hello.() == "world"
+    end
+
+    test "calling double a second time works" do
+      inject1 = double |> allow(:process, with: [], returns: 1)
+      inject2 = double |> allow(:process2, with: [], returns: 2)
+      assert inject1.process.() == 1
+      assert inject2.process.() == 2
+    end
   end
 
   describe "using structs" do
