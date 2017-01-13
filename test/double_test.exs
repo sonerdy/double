@@ -48,6 +48,13 @@ defmodule DoubleTest do
       assert inject.process.(1, 2, 3) == 1
     end
 
+    test "respects arity on any args" do
+      inject = allow(double(), :process, with: {:any, 3}, returns: 1)
+      assert_raise BadArityError, fn ->
+        inject.process.(1) == 1
+      end
+    end
+
     test "allows empty arguments" do
       inject = allow(double(), :process, with: [], returns: 1)
       assert inject.process.() == 1
@@ -62,6 +69,14 @@ defmodule DoubleTest do
       assert inject.process.(1) == 1
       assert inject.process.(3) == 3
       assert inject.process.(3) == 3
+    end
+
+    test "overwrites existing setup with same args" do
+      inject = double
+      |> allow(:process, with: [1], returns: 1)
+      |> allow(:process, with: [1], returns: 2)
+      assert inject.process.(1) == 2
+      assert inject.process.(1) == 2
     end
   end
 end

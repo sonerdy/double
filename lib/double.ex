@@ -84,7 +84,6 @@ defmodule Double do
   use GenServer
 
   def double do
-    current = self()
     state = %{_double: %{pid: nil, stubs: []}}
     {:ok, pid} = GenServer.start_link(__MODULE__, state)
     GenServer.call(pid, {:set_pid, pid})
@@ -103,15 +102,9 @@ defmodule Double do
   end
 
   @doc false
-  def handle_call({:pop_function, function_name, given_args}, _from, dbl) do
+  def handle_call({:pop_function, function_name, args}, _from, dbl) do
     %{_double: %{stubs: stubs}} = dbl
-    matching_stubs = stubs |> Enum.filter(fn(stub) ->
-      case stub do
-        {^function_name, ^given_args, _return_value} -> true
-        {^function_name, {:any, _arity}, _return_value} -> true
-        _ -> false
-      end
-    end)
+    matching_stubs = matching_stubs(stubs, function_name, args)
     case matching_stubs do
       [stub | other_matching_stubs] ->
         # remove this stub from stack only if it's not the only matching one
@@ -128,14 +121,16 @@ defmodule Double do
   end
 
   @doc false
-  def handle_call({:allow, function_name, allowed_args, return_values}, _from, dbl) do
+  def handle_call({:allow, function_name, args, return_values}, _from, dbl) do
     %{_double: %{stubs: stubs}} = dbl
+    matching_stubs = matching_stubs(stubs, function_name, args)
+    stubs = stubs |> Enum.reject(fn(stub) -> Enum.member?(matching_stubs, stub) end)
     stubs = stubs ++ Enum.map(return_values, fn(return_value) ->
-      {function_name, allowed_args, return_value}
+      {function_name, args, return_value}
     end)
     dbl = dbl
     |> put_in([:_double, :stubs], stubs)
-    |> Map.merge(%{function_name => stub_function(dbl._double.pid, function_name, allowed_args)})
+    |> Map.merge(%{function_name => stub_function(dbl._double.pid, function_name, args)})
     {:reply, dbl, dbl}
   end
 
@@ -143,6 +138,16 @@ defmodule Double do
   def handle_call({:set_pid, pid}, _from, dbl) do
     dbl = put_in(dbl, [:_double, :pid], pid)
     {:reply, dbl, dbl}
+  end
+
+  defp matching_stubs(stubs, function_name, args) do
+    stubs |> Enum.filter(fn(stub) ->
+      case stub do
+        {^function_name, ^args, _return_value} -> true
+        {^function_name, {:any, _arity}, _return_value} -> true
+        _ -> false
+      end
+    end)
   end
 
   defp stub_function(pid, function_name, allowed_arguments) do
