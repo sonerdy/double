@@ -102,7 +102,14 @@ defmodule DoubleTest do
       inject1 = double |> allow(:process, with: [], returns: 1)
       inject2 = double |> allow(:process2, with: [], returns: 2)
       assert inject1.process.() == 1
-      assert inject2.process.() == 2
+      assert inject2.process2.() == 2
+    end
+
+    test "nesting the stub is possible" do
+      inject = double |> allow(:process, with: [], returns: 1)
+      inject = Map.put(inject, :logger, allow(inject, :error, with: ["boom"], returns: :ok))
+      assert inject.process.() == 1
+      assert inject.logger.error.("boom") == :ok
     end
   end
 
