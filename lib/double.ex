@@ -1,3 +1,4 @@
+require IEx
 defmodule Double do
   @moduledoc """
   Double is a simple library to help build injectable dependencies for your tests.
@@ -124,7 +125,8 @@ defmodule Double do
     end)
     return_values = if return_values == [], do: [nil], else: return_values
     args = opts[:with]
-    GenServer.call(__MODULE__, {:allow, dbl, function_name, args, return_values})
+    raises = opts[:raises]
+    GenServer.call(__MODULE__, {:allow, dbl, function_name, args, return_values, raises})
   end
 
   defp struct_key_error(dbl, key) do
@@ -150,13 +152,13 @@ defmodule Double do
   end
 
   @doc false
-  def handle_call({:allow, dbl, function_name, args, return_values}, _from, stubs) do
+  def handle_call({:allow, dbl, function_name, args, return_values, raises}, _from, stubs) do
     matching_stubs = matching_stubs(stubs, function_name, args)
     stubs = stubs |> Enum.reject(fn(stub) -> Enum.member?(matching_stubs, stub) end)
     stubs = stubs ++ Enum.map(return_values, fn(return_value) ->
       {function_name, args, return_value}
     end)
-    dbl = put_in(dbl, [Access.key(function_name)], stub_function(function_name, args))
+    dbl = put_in(dbl, [Access.key(function_name)], stub_function(function_name, args, raises))
     {:reply, dbl, stubs}
   end
 
@@ -169,42 +171,32 @@ defmodule Double do
     match?({^function_name, {:any, _arity}, _return_value}, stub)
   end
 
-  defp stub_function(function_name, allowed_arguments) do
+  defp stub_function(function_name, allowed_arguments, raises) do
+    error_code = case raises do
+      {error_type, msg} -> "raise #{error_type}, message: \"#{msg}\""
+      msg when is_bitstring(msg) -> "raise \"#{msg}\""
+      _ -> ""
+    end
     arity = case allowed_arguments do
       {:any, arity} -> arity
       _ -> Enum.count(allowed_arguments)
     end
-
-    # There has to be a better way :(
-    case arity do
-      0 -> fn ->
-        send(self(), function_name)
-        GenServer.call(__MODULE__, {:pop_function, function_name, []})
-      end
-      1 -> fn(a) ->
-        send(self(), {function_name, a})
-        GenServer.call(__MODULE__, {:pop_function, function_name, [a]})
-      end
-      2 -> fn(a,b) ->
-        send(self(), {function_name, a, b})
-        GenServer.call(__MODULE__, {:pop_function, function_name, [a,b]})
-      end
-      3 -> fn(a,b,c) ->
-        send(self(), {function_name, a, b, c})
-        GenServer.call(__MODULE__, {:pop_function, function_name, [a,b,c]})
-      end
-      4 -> fn(a,b,c,d) ->
-        send(self(), {function_name, a, b, c, d})
-        GenServer.call(__MODULE__, {:pop_function, function_name, [a,b,c,d]})
-      end
-      5 -> fn(a,b,c,d,e) ->
-        send(self(), {function_name, a, b, c, d, e})
-        GenServer.call(__MODULE__, {:pop_function, function_name, [a,b,c,d,e]})
-      end
-      6 -> fn(a,b,c,d,e,f) ->
-        send(self(), {function_name, a, b, c, d, e, f})
-        GenServer.call(__MODULE__, {:pop_function, function_name, [a,b,c,d,e,f]})
-      end
+    function_signature = case arity do
+      0 -> ""
+      _ -> Enum.map(0..arity - 1, fn(i) -> << 97 + i :: utf8 >> end) |> Enum.join(", ")
     end
+    message = case function_signature do
+      "" -> ":#{function_name}"
+      _ -> "{:#{function_name}, #{function_signature}}"
+    end
+    function_string = """
+    fn(#{function_signature}) ->
+      send(self(), #{message})
+      GenServer.call(Double, {:pop_function, :#{function_name}, [#{function_signature}]})
+      #{error_code}
+    end
+    """
+    {result, _} = Code.eval_string(function_string)
+    result
   end
 end

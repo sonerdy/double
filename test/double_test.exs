@@ -111,6 +111,20 @@ defmodule DoubleTest do
       assert inject.process.() == 1
       assert inject.logger.error.("boom") == :ok
     end
+
+    test "sets up exceptions with a type of exception" do
+      inject = double |> allow(:process, with: [], raises: {RuntimeError, "boom"})
+      assert_raise RuntimeError, "boom", fn ->
+        inject.process.()
+      end
+    end
+
+    test "sets up exceptions with only a message" do
+      inject = double |> allow(:process, with: [], raises: "boom")
+      assert_raise RuntimeError, "boom", fn ->
+        inject.process.()
+      end
+    end
   end
 
   describe "using structs" do
