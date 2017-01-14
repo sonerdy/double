@@ -89,15 +89,22 @@ defmodule Double do
   """
   use GenServer
 
+  @type stub_options :: [{:with, [...]}, {:returns, [...]}]
+
+  @spec double :: map
+  @spec double(map | struct) :: map | struct
   def double do
-    {:ok, _pid} = GenServer.start_link(__MODULE__, [], name: __MODULE__)
-    %{}
+    double(%{})
   end
-  def double(struct) do
-    {:ok, _pid} = GenServer.start_link(__MODULE__, [], name: __MODULE__)
-    struct
+  def double(struct_or_map) do
+    case GenServer.start_link(__MODULE__, [], name: __MODULE__) do
+      {:ok, _pid} -> struct_or_map
+      {:error, {:already_started, _pid}} -> struct_or_map
+    end
+    struct_or_map
   end
 
+  @spec allow(map | struct, String.t, stub_options) :: map | struct
   def allow(dbl, function_name, opts) when is_list(opts) do
     case dbl do
       %{__struct__: _} ->
@@ -108,7 +115,7 @@ defmodule Double do
       _ -> do_allow(dbl, function_name, opts)
     end
   end
-  def do_allow(dbl, function_name, opts) when is_list(opts) do
+  defp do_allow(dbl, function_name, opts) when is_list(opts) do
     return_values = Enum.reduce(opts, [], fn({k, v}, acc) ->
       case k do
         :returns -> acc ++ [v]
