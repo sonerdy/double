@@ -79,8 +79,7 @@ defmodule Double do
 
   @doc false
   def handle_call({:allow, dbl, function_name, args, return_values, raises}, _from, stubs) do
-    matching_stubs = matching_stubs(stubs, function_name, args)
-    stubs = stubs |> Enum.reject(fn(stub) -> Enum.member?(matching_stubs, stub) end)
+    stubs = stubs |> Enum.reject(fn(stub) -> match?({^function_name, ^args, _return_value}, stub) end)
     stubs = stubs ++ Enum.map(return_values, fn(return_value) ->
       {function_name, args, return_value}
     end)
@@ -90,6 +89,12 @@ defmodule Double do
 
   defp matching_stubs(stubs, function_name, args) do
     Enum.filter(stubs, fn(stub) -> matching_stub?(stub, function_name, args) end)
+    |> Enum.sort_by(fn(stub) ->
+      case stub do
+        {_function_name, {:any, _arity}, _return_value} -> 1
+        _ -> 0
+      end
+    end)
   end
 
   defp matching_stub?(stub, function_name, args) do

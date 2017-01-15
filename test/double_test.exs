@@ -63,6 +63,13 @@ defmodule DoubleTest do
       end
     end
 
+    test "stubbing specific arguments is given priority over {:any, x}" do
+      inject = allow(double(), :process, with: {:any, 3}, returns: 1)
+      |>allow(:process, with: [1,2,3], returns: 2)
+      assert inject.process.(1, 2, 3) == 2
+      assert inject.process.(1, 1, 1) == 1
+    end
+
     test "allows empty arguments" do
       inject = allow(double(), :process, with: [], returns: 1)
       assert inject.process.() == 1
