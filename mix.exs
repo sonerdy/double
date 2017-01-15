@@ -1,5 +1,6 @@
 defmodule Double.Mixfile do
   use Mix.Project
+  @version "0.1.2"
 
   def project do
     [app: :double,
@@ -9,7 +10,14 @@ defmodule Double.Mixfile do
      start_permanent: Mix.env == :prod,
      description: description(),
      package: package(),
-     deps: deps()]
+     deps: deps(),
+     docs: [
+       extras: ["README.md"],
+       main: "readme",
+       source_ref: "v#{@version}",
+       source_url: "https://github.com/sonerdy/double",
+     ]
+   ]
   end
 
   # Configuration for the OTP application
