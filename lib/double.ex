@@ -2,100 +2,23 @@ defmodule Double do
   @moduledoc """
   Double is a simple library to help build injectable dependencies for your tests.
   It does NOT override behavior of existing modules or functions.
-
-  ## Installation
-
-  The package can be installed as:
-
-    1. Add `double` to your list of dependencies in `mix.exs`:
-
-      ```elixir
-      def deps do
-        [{:double, "~> 0.1.2", only: :test}]
-      end
-      ```
-
-  ## Usage
-
-  The first step is to make sure the function you want to test will have it's dependencies injected.
-  This library requires usage of maps, but maybe in future versions we can do something different.
-
-  ```elixir
-  defmodule Example do
-    @inject %{
-      puts: &IO.puts/1,
-      some_service: &SomeService.process/3,
-    }
-
-    def process(inject \\ @inject)
-      inject.puts.("It works without mocking libraries")
-      inject.some_service.(1, 2, 3)
-    end
-  end
-  ```
-
-  Now for an example on how to test this interaction.
-
-  ```elixir
-  defmodule ExampleTest do
-    use ExUnit.Case
-    import Double
-
-    test "example interacts with things" do
-      inject = double
-      |> allow(:puts, with: {:any, 1}, returns: :ok) # {:any, x} will accept any values of arity x
-      |> allow(:some_service, with: [1, 2, 3], returns: :ok) # strictly accepts 3 arguments
-
-      Example.process(inject)
-
-      # now just use the built-in ExUnit methods assert_receive/refute_receive to verify things
-      assert_receive({:puts, "It works without mocking librarires"})
-      assert_receive({:some_service, 1, 2, 3})
-    end
-  end
-  ```
-
-  ## More Features
-
-  You can stub the same function with different args and return values.
-  ```elixir
-  double = double
-  |> allow(:example, with: [1], returns: 1)
-  |> allow(:example, with: [2], returns: 2)
-  |> allow(:example, with: [3], returns: 3)
-
-  double.example.(1) # 1
-  double.example.(2) # 2
-  double.example.(3) # 3
-  ```
-
-  You can stub the same function/args to return different results on subsequent calls
-  ```elixir
-  double = double
-  |> allow(:example, with: [1], returns: 1, returns: 2)
-
-  double.example.(1) # 1
-  double.example.(1) # 2
-  double.example.(1) # 2
-  ```
-
-  Use a struct if you want to verify the keys being stubbed.
-
-  ```elixir
-  double = double(%MyStruct{})
-  |> allow(:example, with: ["hello"], returns: "world")
-  ```
-
   """
+
   use GenServer
 
-  @type stub_options :: [{:with, [...]}, {:returns, [...]}]
+  @type option :: {:with, [...]} | {:returns, any} | {:raises, String.t | {atom, String.t}}
 
   @spec double :: map
   @spec double(map | struct) :: map | struct
+  @doc """
+  Returns a map that can be used to setup stubbed functions.
+  """
   def double do
     double(%{})
   end
+  @doc """
+  Same as double/0 but returns the same map or struct given
+  """
   def double(struct_or_map) do
     case GenServer.start_link(__MODULE__, [], name: __MODULE__) do
       {:ok, _pid} -> struct_or_map
@@ -104,7 +27,11 @@ defmodule Double do
     struct_or_map
   end
 
-  @spec allow(map | struct, String.t, stub_options) :: map | struct
+  @doc """
+  Adds a stubbed function to the given map or struct.
+  Structs will only work if they contain the key given for function_name.
+  """
+  @spec allow(map | struct, atom, [option]) :: map | struct
   def allow(dbl, function_name, opts) when is_list(opts) do
     case dbl do
       %{__struct__: _} ->
@@ -123,8 +50,9 @@ defmodule Double do
       end
     end)
     return_values = if return_values == [], do: [nil], else: return_values
-    args = opts[:with]
-    GenServer.call(__MODULE__, {:allow, dbl, function_name, args, return_values})
+    args = opts[:with] || []
+    raises = opts[:raises]
+    GenServer.call(__MODULE__, {:allow, dbl, function_name, args, return_values, raises})
   end
 
   defp struct_key_error(dbl, key) do
@@ -150,13 +78,13 @@ defmodule Double do
   end
 
   @doc false
-  def handle_call({:allow, dbl, function_name, args, return_values}, _from, stubs) do
+  def handle_call({:allow, dbl, function_name, args, return_values, raises}, _from, stubs) do
     matching_stubs = matching_stubs(stubs, function_name, args)
     stubs = stubs |> Enum.reject(fn(stub) -> Enum.member?(matching_stubs, stub) end)
     stubs = stubs ++ Enum.map(return_values, fn(return_value) ->
       {function_name, args, return_value}
     end)
-    dbl = put_in(dbl, [Access.key(function_name)], stub_function(function_name, args))
+    dbl = put_in(dbl, [Access.key(function_name)], stub_function(function_name, args, raises))
     {:reply, dbl, stubs}
   end
 
@@ -169,42 +97,32 @@ defmodule Double do
     match?({^function_name, {:any, _arity}, _return_value}, stub)
   end
 
-  defp stub_function(function_name, allowed_arguments) do
+  defp stub_function(function_name, allowed_arguments, raises) do
+    error_code = case raises do
+      {error_type, msg} -> "raise #{error_type}, message: \"#{msg}\""
+      msg when is_bitstring(msg) -> "raise \"#{msg}\""
+      _ -> ""
+    end
     arity = case allowed_arguments do
       {:any, arity} -> arity
       _ -> Enum.count(allowed_arguments)
     end
-
-    # There has to be a better way :(
-    case arity do
-      0 -> fn ->
-        send(self(), function_name)
-        GenServer.call(__MODULE__, {:pop_function, function_name, []})
-      end
-      1 -> fn(a) ->
-        send(self(), {function_name, a})
-        GenServer.call(__MODULE__, {:pop_function, function_name, [a]})
-      end
-      2 -> fn(a,b) ->
-        send(self(), {function_name, a, b})
-        GenServer.call(__MODULE__, {:pop_function, function_name, [a,b]})
-      end
-      3 -> fn(a,b,c) ->
-        send(self(), {function_name, a, b, c})
-        GenServer.call(__MODULE__, {:pop_function, function_name, [a,b,c]})
-      end
-      4 -> fn(a,b,c,d) ->
-        send(self(), {function_name, a, b, c, d})
-        GenServer.call(__MODULE__, {:pop_function, function_name, [a,b,c,d]})
-      end
-      5 -> fn(a,b,c,d,e) ->
-        send(self(), {function_name, a, b, c, d, e})
-        GenServer.call(__MODULE__, {:pop_function, function_name, [a,b,c,d,e]})
-      end
-      6 -> fn(a,b,c,d,e,f) ->
-        send(self(), {function_name, a, b, c, d, e, f})
-        GenServer.call(__MODULE__, {:pop_function, function_name, [a,b,c,d,e,f]})
-      end
+    function_signature = case arity do
+      0 -> ""
+      _ -> Enum.map(0..arity - 1, fn(i) -> << 97 + i :: utf8 >> end) |> Enum.join(", ")
     end
+    message = case function_signature do
+      "" -> ":#{function_name}"
+      _ -> "{:#{function_name}, #{function_signature}}"
+    end
+    function_string = """
+    fn(#{function_signature}) ->
+      send(self(), #{message})
+      GenServer.call(Double, {:pop_function, :#{function_name}, [#{function_signature}]})
+      #{error_code}
+    end
+    """
+    {result, _} = Code.eval_string(function_string)
+    result
   end
 end

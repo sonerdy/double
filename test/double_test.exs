@@ -68,6 +68,11 @@ defmodule DoubleTest do
       assert inject.process.() == 1
     end
 
+    test "without arguments setup defaults to none required" do
+      inject = double |> allow(:process, returns: :ok)
+      assert inject.process.() == :ok
+    end
+
     test "allows out of order calls" do
       inject = double
       |> allow(:process, with: [1], returns: 1)
@@ -106,11 +111,28 @@ defmodule DoubleTest do
     end
 
     test "nesting the stub is possible" do
-      inject = double |> allow(:process, with: [], returns: 1)
-      inject = Map.put(inject, :logger, allow(inject, :error, with: ["boom"], returns: :ok))
+      inject = allow(double, :process, with: [], returns: 1)
+      |> Map.put(:logger, double
+        |> allow(:error, with: ["boom"], returns: :ok)
+      )
       assert inject.process.() == 1
       assert inject.logger.error.("boom") == :ok
     end
+
+    test "sets up exceptions with a type of exception" do
+      inject = double |> allow(:process, with: [], raises: {RuntimeError, "boom"})
+      assert_raise RuntimeError, "boom", fn ->
+        inject.process.()
+      end
+    end
+
+    test "sets up exceptions with only a message" do
+      inject = double |> allow(:process, with: [], raises: "boom")
+      assert_raise RuntimeError, "boom", fn ->
+        inject.process.()
+      end
+    end
+
   end
 
   describe "using structs" do
