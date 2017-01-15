@@ -73,6 +73,11 @@ defmodule DoubleTest do
       assert inject.process.() == :ok
     end
 
+    test "without options returns nil" do
+      inject = double |> allow(:process)
+      assert inject.process.() == nil
+    end
+
     test "allows out of order calls" do
       inject = double
       |> allow(:process, with: [1], returns: 1)
@@ -132,7 +137,48 @@ defmodule DoubleTest do
         inject.process.()
       end
     end
+  end
 
+  describe "expect" do
+    test "passes verification when all calls are made appropriately" do
+      inject = double |> expect(:process)
+      |> expect(:process2, with: [1,2,3])
+      |> expect(:process3, with: {:any, 2})
+      inject.process.()
+      inject.process2.(1, 2, 3)
+      inject.process3.("hello", "world")
+      assert verify_doubles == :ok
+    end
+
+    test "fails verification when an expected function was not called" do
+      inject = double |> expect(:process)
+      assert_raise Double.DoubleVerificationError, "\n\nExpected to receive :process. Mailbox contained: []", fn ->
+        verify_doubles
+      end
+    end
+
+    test "fails verification when one of many messsages is not received" do
+      inject = double |> expect(:process)
+      |> expect(:process2)
+      |> expect(:process3)
+      inject.process.()
+      inject.process3.()
+      assert_raise Double.DoubleVerificationError, fn ->
+        verify_doubles
+      end
+    end
+
+    test "fails verification when calls are out of order" do
+      inject = double |> expect(:process)
+      |> expect(:process2)
+      |> expect(:process3)
+      inject.process.()
+      inject.process3.()
+      inject.process2.()
+      assert_raise Double.DoubleVerificationError, fn ->
+        verify_doubles
+      end
+    end
   end
 
   describe "using structs" do
