@@ -20,7 +20,7 @@ defmodule Double do
   Same as double/0 but returns the same map or struct given
   """
   def double(struct_or_map) do
-    case GenServer.start_link(__MODULE__, [], name: __MODULE__) do
+    case GenServer.start_link(__MODULE__, {[], []}, name: __MODULE__) do
       {:ok, _pid} -> struct_or_map
       {:error, {:already_started, _pid}} -> struct_or_map
     end
@@ -32,7 +32,7 @@ defmodule Double do
   Structs will only work if they contain the key given for function_name.
   """
   @spec allow(map | struct, atom, [option]) :: map | struct
-  def allow(dbl, function_name, opts) when is_list(opts) do
+  def allow(dbl, function_name, opts \\ []) when is_list(opts) do
     case dbl do
       %{__struct__: _} ->
         case Enum.member?(Map.keys(dbl), function_name) do
@@ -52,7 +52,30 @@ defmodule Double do
     return_values = if return_values == [], do: [nil], else: return_values
     args = opts[:with] || []
     raises = opts[:raises]
-    GenServer.call(__MODULE__, {:allow, dbl, function_name, args, return_values, raises})
+    expected = opts[:expected] == true
+    GenServer.call(__MODULE__, {:allow, dbl, function_name, args, return_values, raises, expected})
+  end
+
+  def expect(dbl, function_name, opts \\ []) when is_list(opts) do
+    opts = opts ++ [expected: true]
+    allow(dbl, function_name, opts)
+  end
+
+  def verify_doubles do
+    {:messages, messages} = Process.info(self(), :messages)
+    GenServer.call(__MODULE__, :get_expects)
+    |> Enum.each(fn(expected) ->
+      case Enum.find(messages, fn(msg) ->
+        case expected do
+          {function_name, {:any, arity}} ->
+            (is_tuple(msg) && (tuple_size(msg) == (arity + 1)) && elem(msg, 0) == function_name)
+          _ -> msg == expected
+        end
+      end) do
+        nil -> raise Double.DoubleVerificationError, expected: expected, messages: messages
+        _ -> :ok
+      end
+    end)
   end
 
   defp struct_key_error(dbl, key) do
@@ -61,7 +84,12 @@ defmodule Double do
   end
 
   @doc false
-  def handle_call({:pop_function, function_name, args}, _from, stubs) do
+  def handle_call(:get_expects, _from, {stubs, expects}) do
+    {:reply, expects, {stubs, expects}}
+  end
+
+  @doc false
+  def handle_call({:pop_function, function_name, args}, _from, {stubs, expects}) do
     matching_stubs = matching_stubs(stubs, function_name, args)
     case matching_stubs do
       [stub | other_matching_stubs] ->
@@ -72,20 +100,30 @@ defmodule Double do
           List.delete(stubs, stub)
         end
         {_, _, return_value} = stub
-        {:reply, return_value, stubs}
-      [] -> {:reply, nil, stubs}
+        {:reply, return_value, {stubs, expects}}
+      [] -> {:reply, nil, {stubs, expects}}
     end
   end
 
   @doc false
-  def handle_call({:allow, dbl, function_name, args, return_values, raises}, _from, stubs) do
+  def handle_call({:allow, dbl, function_name, args, return_values, raises, expected}, _from, {stubs, expects}) do
     matching_stubs = matching_stubs(stubs, function_name, args)
     stubs = stubs |> Enum.reject(fn(stub) -> Enum.member?(matching_stubs, stub) end)
     stubs = stubs ++ Enum.map(return_values, fn(return_value) ->
       {function_name, args, return_value}
     end)
     dbl = put_in(dbl, [Access.key(function_name)], stub_function(function_name, args, raises))
-    {:reply, dbl, stubs}
+    expects = if expected do
+      expected_msg = case args do
+        [] -> function_name
+        {:any, arity} -> {function_name, {:any, arity}}
+        _ -> [function_name] ++ args |> List.to_tuple
+      end
+      expects ++ [expected_msg]
+    else
+      expects
+    end
+    {:reply, dbl, {stubs, expects}}
   end
 
   defp matching_stubs(stubs, function_name, args) do
@@ -124,5 +162,19 @@ defmodule Double do
     """
     {result, _} = Code.eval_string(function_string)
     result
+  end
+
+  defmodule DoubleVerificationError do
+    @moduledoc """
+    Raised to signal an error verifying doubles.
+    """
+
+    defexception message: nil, expected: nil, messages: nil
+
+    def message(ex) do
+      "\n\n" <>
+        "Expected to receive #{inspect ex.expected}. " <>
+        "Mailbox contained: #{inspect ex.messages}"
+    end
   end
 end
