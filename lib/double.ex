@@ -8,6 +8,8 @@ defmodule Double do
 
   @type option :: {:with, [...]} | {:returns, any} | {:raises, String.t | {atom, String.t}}
 
+  # API
+
   @spec double :: map
   @spec double(map | struct) :: map | struct
   @doc """
@@ -20,11 +22,11 @@ defmodule Double do
   Same as double/0 but returns the same map or struct given
   """
   def double(struct_or_map) do
-    case GenServer.start_link(__MODULE__, [], name: __MODULE__) do
-      {:ok, _pid} -> struct_or_map
-      {:error, {:already_started, _pid}} -> struct_or_map
-    end
-    struct_or_map
+    Double.Registry.start_link
+    {:ok, pid} = GenServer.start_link(__MODULE__, [])
+    double_id = :crypto.hash(:sha, pid |> inspect) |> Base.encode16 |> String.downcase
+    Double.Registry.register_double(double_id, pid)
+    Map.put(struct_or_map, :_double_id, double_id)
   end
 
   @doc """
@@ -52,13 +54,11 @@ defmodule Double do
     return_values = if return_values == [], do: [nil], else: return_values
     args = opts[:with] || []
     raises = opts[:raises]
-    GenServer.call(__MODULE__, {:allow, dbl, function_name, args, return_values, raises})
+    pid = Double.Registry.whereis_double(dbl._double_id)
+    GenServer.call(pid, {:allow, dbl, function_name, args, return_values, raises})
   end
 
-  defp struct_key_error(dbl, key) do
-    msg = "The struct #{dbl.__struct__} does not contain key: #{key}. Use a Map if you want to add dynamic function names."
-    raise ArgumentError, message: msg
-  end
+  # SERVER
 
   @doc false
   def handle_call({:pop_function, function_name, args}, _from, stubs) do
@@ -83,7 +83,7 @@ defmodule Double do
     stubs = stubs ++ Enum.map(return_values, fn(return_value) ->
       {function_name, args, return_value}
     end)
-    dbl = put_in(dbl, [Access.key(function_name)], stub_function(function_name, args, raises))
+    dbl = put_in(dbl, [Access.key(function_name)], stub_function(dbl._double_id, function_name, args, raises))
     {:reply, dbl, stubs}
   end
 
@@ -102,7 +102,7 @@ defmodule Double do
     match?({^function_name, {:any, _arity}, _return_value}, stub)
   end
 
-  defp stub_function(function_name, allowed_arguments, raises) do
+  defp stub_function(double_id, function_name, allowed_arguments, raises) do
     error_code = case raises do
       {error_type, msg} -> "raise #{error_type}, message: \"#{msg}\""
       msg when is_bitstring(msg) -> "raise \"#{msg}\""
@@ -123,11 +123,17 @@ defmodule Double do
     function_string = """
     fn(#{function_signature}) ->
       send(self(), #{message})
-      GenServer.call(Double, {:pop_function, :#{function_name}, [#{function_signature}]})
+      pid = Double.Registry.whereis_double(\"#{double_id}\")
+      GenServer.call(pid, {:pop_function, :#{function_name}, [#{function_signature}]})
       #{error_code}
     end
     """
     {result, _} = Code.eval_string(function_string)
     result
+  end
+
+  defp struct_key_error(dbl, key) do
+    msg = "The struct #{dbl.__struct__} does not contain key: #{key}. Use a Map if you want to add dynamic function names."
+    raise ArgumentError, message: msg
   end
 end

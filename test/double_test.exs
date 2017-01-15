@@ -140,6 +140,12 @@ defmodule DoubleTest do
       end
     end
 
+    test "handles multiple doubles with separate expectations" do
+      double1 = double |> allow(:process, returns: 1)
+      double2 = double |> allow(:process, returns: 2)
+      assert double1.process.() == 1
+      assert double2.process.() == 2
+    end
   end
 
   describe "using structs" do
