@@ -4,8 +4,8 @@ defmodule Double.Registry do
 
   # API
 
-  def start_link do
-    GenServer.start_link(__MODULE__, nil, name: :registry)
+  def start do
+    GenServer.start(__MODULE__, nil, name: :registry)
   end
 
   def whereis_double(double_id) do

@@ -22,7 +22,7 @@ defmodule Double do
   Same as double/0 but returns the same map or struct given
   """
   def double(struct_or_map) do
-    Double.Registry.start_link
+    Double.Registry.start
     {:ok, pid} = GenServer.start_link(__MODULE__, [])
     double_id = :crypto.hash(:sha, pid |> inspect) |> Base.encode16 |> String.downcase
     Double.Registry.register_double(double_id, pid)
