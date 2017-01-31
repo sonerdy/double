@@ -10,7 +10,7 @@ The package can be installed as:
 
     ```elixir
     def deps do
-      [{:double, "~> 0.1.2", only: :test}]
+      [{:double, "~> 0.2.5", only: :test}]
     end
     ```
 
@@ -45,7 +45,7 @@ defmodule Example do
     defstruct puts: &IO.puts/1, some_service: &SomeService.process/3
   end
 
-  def process(inject \\ %Inject{})
+  def process(inject \\ %Inject{}) do
     inject.puts.("It works without mocking libraries")
     inject.some_service.(1, 2, 3)
   end
@@ -68,7 +68,7 @@ defmodule ExampleTest do
     Example.process(inject)
 
     # now just use the built-in ExUnit methods assert_receive/refute_receive to verify things
-    assert_receive({:puts, "It works without mocking librarires"})
+    assert_receive({:puts, "It works without mocking libraries"})
     assert_receive({:some_service, 1, 2, 3})
   end
 end
