@@ -27,7 +27,7 @@ defmodule Example do
     some_service: &SomeService.process/3,
   }
 
-  def process(inject \\ @inject)
+  def process(inject \\ @inject) do
     inject.puts.("It works without mocking libraries")
     inject.some_service.(1, 2, 3)
   end
