@@ -83,7 +83,7 @@ defmodule Double do
     stubs = stubs ++ Enum.map(return_values, fn(return_value) ->
       {function_name, args, return_value}
     end)
-    dbl = put_in(dbl, [Access.key(function_name)], stub_function(dbl._double_id, function_name, args, raises))
+    dbl = put_in(dbl, [function_name], stub_function(dbl._double_id, function_name, args, raises))
     {:reply, dbl, stubs}
   end
 

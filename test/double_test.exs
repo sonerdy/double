@@ -8,7 +8,7 @@ defmodule DoubleTest do
 
   describe "double" do
     test "creates a map" do
-      assert is_map(double) == true
+      assert is_map(double()) == true
     end
 
     test "can return structs" do
@@ -76,12 +76,12 @@ defmodule DoubleTest do
     end
 
     test "without arguments setup defaults to none required" do
-      inject = double |> allow(:process, returns: :ok)
+      inject = double() |> allow(:process, returns: :ok)
       assert inject.process.() == :ok
     end
 
     test "allows out of order calls" do
-      inject = double
+      inject = double()
       |> allow(:process, with: [1], returns: 1)
       |> allow(:process, with: [2], returns: 2)
       |> allow(:process, with: [3], returns: 3)
@@ -92,7 +92,7 @@ defmodule DoubleTest do
     end
 
     test "overwrites existing setup with same args" do
-      inject = double
+      inject = double()
       |> allow(:process, with: [1], returns: 1)
       |> allow(:process, with: [1], returns: 2)
       assert inject.process.(1) == 2
@@ -111,15 +111,15 @@ defmodule DoubleTest do
     end
 
     test "calling double a second time works" do
-      inject1 = double |> allow(:process, with: [], returns: 1)
-      inject2 = double |> allow(:process2, with: [], returns: 2)
+      inject1 = double() |> allow(:process, with: [], returns: 1)
+      inject2 = double() |> allow(:process2, with: [], returns: 2)
       assert inject1.process.() == 1
       assert inject2.process2.() == 2
     end
 
     test "nesting the stub is possible" do
-      inject = allow(double, :process, with: [], returns: 1)
-      |> Map.put(:logger, double
+      inject = allow(double(), :process, with: [], returns: 1)
+      |> Map.put(:logger, double()
         |> allow(:error, with: ["boom"], returns: :ok)
       )
       assert inject.process.() == 1
@@ -127,22 +127,22 @@ defmodule DoubleTest do
     end
 
     test "sets up exceptions with a type of exception" do
-      inject = double |> allow(:process, with: [], raises: {RuntimeError, "boom"})
+      inject = double() |> allow(:process, with: [], raises: {RuntimeError, "boom"})
       assert_raise RuntimeError, "boom", fn ->
         inject.process.()
       end
     end
 
     test "sets up exceptions with only a message" do
-      inject = double |> allow(:process, with: [], raises: "boom")
+      inject = double() |> allow(:process, with: [], raises: "boom")
       assert_raise RuntimeError, "boom", fn ->
         inject.process.()
       end
     end
 
     test "handles multiple doubles with separate expectations" do
-      double1 = double |> allow(:process, returns: 1)
-      double2 = double |> allow(:process, returns: 2)
+      double1 = double() |> allow(:process, returns: 1)
+      double2 = double() |> allow(:process, returns: 2)
       assert double1.process.() == 1
       assert double2.process.() == 2
     end
