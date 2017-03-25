@@ -23,9 +23,10 @@ defmodule Double do
   """
   def double(struct_or_map) do
     Double.Registry.start
+    test_pid = self()
     {:ok, pid} = GenServer.start_link(__MODULE__, [])
     double_id = :crypto.hash(:sha, pid |> inspect) |> Base.encode16 |> String.downcase
-    Double.Registry.register_double(double_id, pid)
+    Double.Registry.register_double(double_id, pid, test_pid)
     Map.put(struct_or_map, :_double_id, double_id)
   end
 
@@ -122,7 +123,8 @@ defmodule Double do
     end
     function_string = """
     fn(#{function_signature}) ->
-      send(self(), #{message})
+      test_pid = Double.Registry.whereis_test(\"#{double_id}\")
+      send(test_pid, #{message})
       pid = Double.Registry.whereis_double(\"#{double_id}\")
       GenServer.call(pid, {:pop_function, :#{function_name}, [#{function_signature}]})
       #{error_code}

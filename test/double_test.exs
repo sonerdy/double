@@ -163,4 +163,12 @@ defmodule DoubleTest do
       end
     end
   end
+
+  test "works normally when called within another process" do
+    inject = double() |> allow(:some_function, with: [], returns: :ok)
+    spawn fn ->
+      inject.some_function.()
+    end
+    assert_receive :some_function
+  end
 end

@@ -12,8 +12,12 @@ defmodule Double.Registry do
     GenServer.call(:registry, {:whereis_double, double_id})
   end
 
-  def register_double(double_id, pid) do
-    GenServer.call(:registry, {:register_id, double_id, pid})
+  def whereis_test(double_id) do
+    GenServer.call(:registry, {:whereis_test, double_id})
+  end
+
+  def register_double(double_id, pid, test_pid) do
+    GenServer.call(:registry, {:register_id, double_id, pid, test_pid})
   end
 
   # SERVER
@@ -23,13 +27,21 @@ defmodule Double.Registry do
   end
 
   def handle_call({:whereis_double, double_id}, _from, state) do
-    {:reply, Map.get(state, double_id, :undefined), state}
+    {double_pid, _} = state
+    |> Map.get(double_id, {:undefined, nil})
+    {:reply, double_pid, state}
   end
 
-  def handle_call({:register_id, double_id, pid}, _from, state) do
+  def handle_call({:whereis_test, double_id}, _from, state) do
+    {_, test_pid} = state
+    |> Map.get(double_id, {:undefined, nil})
+    {:reply, test_pid, state}
+  end
+
+  def handle_call({:register_id, double_id, pid, test_pid}, _from, state) do
     case Map.get(state, double_id) do
       nil ->
-        {:reply, :yes, Map.put(state, double_id, pid)}
+        {:reply, :yes, Map.put(state, double_id, {pid, test_pid})}
 
       _ ->
         {:reply, :no, state}
