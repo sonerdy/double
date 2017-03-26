@@ -1,166 +1,146 @@
+Code.require_file("./test/common_tests.ex")
 defmodule DoubleTest do
   use ExUnit.Case, async: false
+  import CommonTests
   import Double
 
   defmodule TestStruct do
-    defstruct io_puts: &IO.puts/1, sleep: &:timer.sleep/1
+    defstruct io_puts: &IO.puts/1,
+              sleep: &:timer.sleep/1,
+              process: &:timer.sleep/1,
+              another_function: &:timer.sleep/1
+  end
+
+  defmodule TestModule do
+    def io_puts(x), do: x
+    def sleep(x), do: x
+    def process, do: nil
+    def process(x), do: x
+    def process(x, y, z), do: {x,y,z}
+    def another_function,  do: nil
+    def another_function(x), do: x
+  end
+
+  defp maps(context) do
+    context
+    |> Map.merge(%{
+      dbl: double(),
+      dbl2: double(),
+      subject: fn(dbl, function_name, args) ->
+        apply(dbl[function_name], args)
+      end
+    })
+  end
+
+  defp modules(context) do
+    context
+    |> Map.merge(%{
+      dbl: double(TestModule),
+      dbl2: double(TestModule),
+      subject: fn(dbl, function_name, args) ->
+        apply(dbl, function_name, args)
+      end
+    })
+  end
+
+  defp structs(context) do
+    context
+    |> Map.merge(%{
+      dbl: double(%TestStruct{}),
+      dbl2: double(%TestStruct{}),
+      subject: fn(dbl, function_name, args) ->
+        apply(Map.get(dbl, function_name), args)
+      end
+    })
   end
 
   describe "double" do
     test "creates a map" do
-      assert is_map(double()) == true
+      assert double() |> is_map()
     end
 
     test "can return structs" do
-      {%TestStruct{}} = {double(%TestStruct{})}
+      %TestStruct{} = double(%TestStruct{})
+    end
+
+    test "stubs modules" do
+      assert double(IO) |> is_atom
     end
   end
 
-  describe "allow" do
-    test "adds functions to maps" do
-      inject = allow(double(), :process, with: [1,2,3], returns: 1)
-      assert inject.process.(1, 2, 3) == 1
-      assert_receive({:process, 1, 2, 3})
+  describe "Map doubles" do
+    setup [:maps]
 
-      inject = allow(inject, :another_function, with: [], returns: :anything)
-      assert inject.another_function.() == :anything
-      assert_receive(:another_function)
-    end
+    test_double_behavior()
 
-    test "allows multiple calls" do
-      inject = allow(double(), :process, with: [1,2,3], returns: 1)
-      assert inject.process.(1, 2, 3) == 1
-      assert inject.process.(1, 2, 3) == 1
-    end
-
-    test "allows subsequent calls to return new values" do
-      inject = allow(double(), :process,
-        with: [1,2,3],
-        returns: 1,
-        returns: 2,
-        returns: 3
-      )
-      assert inject.process.(1, 2, 3) == 1
-      assert inject.process.(1, 2, 3) == 2
-      assert inject.process.(1, 2, 3) == 3
-      assert inject.process.(1, 2, 3) == 3
-    end
-
-    test "no return value is nil" do
-      inject = allow(double(), :process, with: [1,2,3])
-      assert inject.process.(1, 2, 3) == nil
-    end
-
-    test "allows any arguments" do
-      inject = allow(double(), :process, with: {:any, 3}, returns: 1)
-      assert inject.process.(1, 2, 3) == 1
-    end
-
-    test "respects arity on any args" do
-      inject = allow(double(), :process, with: {:any, 3}, returns: 1)
-      assert_raise BadArityError, fn ->
-        inject.process.(1) == 1
-      end
-    end
-
-    test "stubbing specific arguments is given priority over {:any, x}" do
-      inject = allow(double(), :process, with: {:any, 3}, returns: 1)
-      |>allow(:process, with: [1,2,3], returns: 2)
-      assert inject.process.(1, 2, 3) == 2
-      assert inject.process.(1, 1, 1) == 1
-    end
-
-    test "allows empty arguments" do
-      inject = allow(double(), :process, with: [], returns: 1)
-      assert inject.process.() == 1
-    end
-
-    test "without arguments setup defaults to none required" do
-      inject = double() |> allow(:process, returns: :ok)
-      assert inject.process.() == :ok
-    end
-
-    test "allows out of order calls" do
-      inject = double()
-      |> allow(:process, with: [1], returns: 1)
-      |> allow(:process, with: [2], returns: 2)
-      |> allow(:process, with: [3], returns: 3)
-      assert inject.process.(2) == 2
-      assert inject.process.(1) == 1
-      assert inject.process.(3) == 3
-      assert inject.process.(3) == 3
-    end
-
-    test "overwrites existing setup with same args" do
-      inject = double()
-      |> allow(:process, with: [1], returns: 1)
-      |> allow(:process, with: [1], returns: 2)
-      assert inject.process.(1) == 2
-      assert inject.process.(1) == 2
-    end
-
-    test "keeps existing data in maps between stub calls" do
-      inject = double(%{im_here: 1})
+    test "keeps existing data in maps between stub calls", %{dbl: dbl, subject: subject} do
+      inject = dbl
+      |> Map.merge(%{im_here: 1})
       |> allow(:process, with: [], returns: 1)
       |> put_in([:dont_kill_me], 1)
       |> allow(:hello, with: [], returns: "world")
       assert inject.dont_kill_me == 1
       assert inject.im_here == 1
-      assert inject.process.() == 1
-      assert inject.hello.() == "world"
+      assert subject.(inject, :process, []) == 1
+      assert subject.(inject, :hello, []) == "world"
     end
 
-    test "calling double a second time works" do
-      inject1 = double() |> allow(:process, with: [], returns: 1)
-      inject2 = double() |> allow(:process2, with: [], returns: 2)
-      assert inject1.process.() == 1
-      assert inject2.process2.() == 2
-    end
-
-    test "nesting the stub is possible" do
-      inject = allow(double(), :process, with: [], returns: 1)
-      |> Map.put(:logger, double()
+    test "nesting the stub is possible", %{dbl: dbl, dbl2: dbl2, subject: subject} do
+      inject = allow(dbl, :process, with: [], returns: 1)
+      |> Map.put(:logger, dbl2
         |> allow(:error, with: ["boom"], returns: :ok)
       )
-      assert inject.process.() == 1
-      assert inject.logger.error.("boom") == :ok
+      assert subject.(inject, :process, []) == 1
+      assert subject.(inject.logger, :error, ["boom"]) == :ok
     end
 
-    test "sets up exceptions with a type of exception" do
-      inject = double() |> allow(:process, with: [], raises: {RuntimeError, "boom"})
-      assert_raise RuntimeError, "boom", fn ->
-        inject.process.()
+    test "respects arity on any args", %{dbl: dbl, subject: subject} do
+      inject = allow(dbl, :process, with: {:any, 3}, returns: 1)
+      assert_raise BadArityError, fn ->
+        subject.(inject, :process, [1]) == 1
       end
     end
 
-    test "sets up exceptions with only a message" do
-      inject = double() |> allow(:process, with: [], raises: "boom")
-      assert_raise RuntimeError, "boom", fn ->
-        inject.process.()
-      end
+  end
+
+  describe "Struct doubles" do
+    setup [:structs]
+
+    test_double_behavior()
+
+    test "allow can stub a function for a struct", %{dbl: dbl, subject: subject} do
+      dbl = allow(dbl, :io_puts, with: ["hello world"], returns: :ok)
+      assert subject.(dbl, :io_puts, ["hello world"]) == :ok
+      %TestStruct{} = dbl
     end
 
-    test "handles multiple doubles with separate expectations" do
-      double1 = double() |> allow(:process, returns: 1)
-      double2 = double() |> allow(:process, returns: 2)
-      assert double1.process.() == 1
-      assert double2.process.() == 2
+    test "stubbing a struct with an unknown key fails", %{dbl: dbl, subject: subject} do
+      assert_raise ArgumentError, "The struct Elixir.DoubleTest.TestStruct does not contain key: boom. Use a Map if you want to add dynamic function names.", fn ->
+        dbl = allow(dbl, :boom, with: [1], returns: :ok)
+        assert subject.(dbl, :boom, [1]) == :ok
+      end
     end
   end
 
-  describe "using structs" do
-    test "allow can stub a function for a struct", inject \\ %TestStruct{} do
-      inject = double(inject)
-      |> allow(:io_puts, with: ["hello world"], returns: :ok)
-      assert inject.io_puts.("hello world") == :ok
+  describe "Module doubles" do
+    setup [:modules]
+
+    test_double_behavior()
+
+    test "module names include source name", %{dbl: dbl} do
+      assert "TestModuleDouble" <> _ = Atom.to_string(dbl)
     end
 
-    test "stubbing a struct with an unknown key fails" do
-      assert_raise ArgumentError, "The struct Elixir.DoubleTest.TestStruct does not contain key: boom. Use a Map if you want to add dynamic function names.", fn ->
-        inject = double(%TestStruct{})
-        |> allow(:boom, with: [1], returns: :ok)
-        assert inject.boom.(1) == :ok
+    test "module doubles are strict by default", %{dbl: dbl} do
+      assert_raise VerifyingDoubleError, "The function 'non_existent_function/1' is not defined in TestModuleDouble", fn ->
+        allow(dbl, :non_existent_function, with: {:any, 1}, returns: 1)
       end
+    end
+
+    test "verification can be turned off" do
+      dbl = double(TestModule, verify: false)
+      allow(dbl, :non_existent_function, with: {:any, 1}, returns: 1)
+      assert dbl.non_existent_function(1) == 1
     end
   end
 
