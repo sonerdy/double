@@ -1,7 +1,9 @@
-Code.require_file("./test/common_tests.ex")
+Code.require_file("./test/keyword_syntax_tests.ex")
+Code.require_file("./test/function_syntax_tests.ex")
 defmodule DoubleTest do
   use ExUnit.Case, async: false
-  import CommonTests
+  import KeywordSyntaxTests
+  import FunctionSyntaxTests
   import Double
 
   defmodule TestStruct do
@@ -71,7 +73,8 @@ defmodule DoubleTest do
   describe "Map doubles" do
     setup [:maps]
 
-    test_double_behavior()
+    keyword_syntax_behavior()
+    function_syntax_behavior()
 
     test "keeps existing data in maps between stub calls", %{dbl: dbl, subject: subject} do
       inject = dbl
@@ -106,7 +109,8 @@ defmodule DoubleTest do
   describe "Struct doubles" do
     setup [:structs]
 
-    test_double_behavior()
+    keyword_syntax_behavior()
+    function_syntax_behavior()
 
     test "allow can stub a function for a struct", %{dbl: dbl, subject: subject} do
       dbl = allow(dbl, :io_puts, with: ["hello world"], returns: :ok)
@@ -125,7 +129,8 @@ defmodule DoubleTest do
   describe "Module doubles" do
     setup [:modules]
 
-    test_double_behavior()
+    keyword_syntax_behavior()
+    function_syntax_behavior()
 
     test "module names include source name", %{dbl: dbl} do
       assert "TestModuleDouble" <> _ = Atom.to_string(dbl)

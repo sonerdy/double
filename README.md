@@ -1,6 +1,8 @@
 # Double
 Double builds on-the-fly injectable dependencies for your tests.
 It does NOT override behavior of existing modules or functions.
+Double uses Elixir's built-in language features such as pattern matching and message passing to
+give you everything you would normally need a complex mocking tool for.
 
 ## Installation
 
@@ -24,7 +26,7 @@ You can use this module like any other module that you call functions on.
 
 ```elixir
 defmodule Example do
-  def process(io \\ IO) do
+  def process(io \\ IO) do # allow an alternative dependency to be passed
     io.puts("It works without mocking libraries")
   end
 end
@@ -35,9 +37,9 @@ defmodule ExampleTest do
 
   test "example outputs to console" do
     inject = double(IO)
-    |> allow(:puts, with: {:any, 1}, returns: :ok) # {:any, x} will accept any values of arity x
+    |> allow(:puts, fn(_msg) -> :ok end)
 
-    Example.process(inject)
+    Example.process(inject) # inject the stub module
 
     # now just use the built-in ExUnit methods assert_receive/refute_receive to verify things
     assert_receive({:puts, "It works without mocking libraries"})
@@ -68,9 +70,9 @@ defmodule ExampleTest do
   import Double
 
   test "example test" do
-    inject = double()
-    |> allow(:puts, with: {:any, 1}, returns: :ok) # {:any, x} will accept any values of arity x
-    |> allow(:another_service, with: [1,2,3], returns: :ok) # requires exactly 1, 2, 3 arguments
+    inject = double() # by not specifying a module, double defaults to returning a map
+    |> allow(:puts, fn(_msg) -> :ok end)
+    |> allow(:another_service, fn(1, 2, 3) -> :ok end) # requires exactly 1, 2, 3 arguments
 
     Example.process(inject)
 
@@ -83,7 +85,7 @@ end
 
 ### Struct Doubles
 
-Using a struct behaves much like using maps, but has the benefit of throwing an error when trying to allow a non-existent key.
+Using a struct behaves just like using maps, but has the benefit of throwing an error when trying to allow a non-existent key.
 Structs can also be handy for re-use if you share similar dependencies throughout your app.
 
 ```elixir
@@ -103,7 +105,7 @@ defmodule ExampleTest do
 
   test "example test" do
     inject = double(%Example.Inject{})
-    |> allow(:puts, with: {:any, 1}, returns: :ok) # {:any, x} will accept any values of arity x
+    |> allow(:puts, fn(_msg) -> :ok end)
 
     Example.process(inject)
 
@@ -118,20 +120,22 @@ end
 ### Basics
 
 ```elixir
-# minimal function - no return value or arguments
+# minimal function - no arguments and returns nil
 stub = double(Application) |> allow(:started_applications)
 stub.started_applications() #nil
 
 # only accept specific arguments
-stub = double(Application) |> allow(:ensure_all_started, with: [:logger])
+stub = double(Application)
+|> allow(:ensure_all_started, fn(:logger) -> nil end)
 stub.ensure_all_started(:logger) # nil
+stub.ensure_all_started(:something) # raises FunctionClauseError
 
-# setup return value
-stub = double(IO) |> allow(:puts, with: ["hello world"], returns: :ok)
+# with return values
+stub = double(IO) |> allow(:puts, fn("hello world") -> :ok end)
 stub.puts("hello world") # :ok
 
-# accept any arguments of specific arity
-stub = double(ExampleModule) |> allow(:example, with: {:any, 2}, returns: :ok)
+# User pattern matching to accept any arguments
+stub = double(ExampleModule) |> allow(:example, fn(x, y) -> :ok end)
 stub.example("hello", "world") # :ok
 
 # stub as many functions as you want
@@ -143,16 +147,16 @@ stub = double(ExampleModule)
 stub = double
 |> Map.merge(%{some_value: "hello"})
 |> allow(:example)
-double.some_value # "hello"
-double.example.() # nil
+stub.some_value # "hello"
+stub.example.() # nil
 ```
 
 ### Different return values for different arguments
 ```elixir
 stub = double(ExampleModule)
-|> allow(:example, with: ["one"], returns: 1)
-|> allow(:example, with: ["two"], returns: 2)
-|> allow(:example, with: ["three"], returns: 3)
+|> allow(:example, fn("one") -> 1 end)
+|> allow(:example, fn("two") -> 2 end)
+|> allow(:example, fn("three") -> 3 end)
 
 stub.example("one") # 1
 stub.example("two") # 2
@@ -162,7 +166,8 @@ stub.example("three") # 3
 ### Multiple calls returning different values
 ```elixir
 stub = double(ExampleModule)
-|> allow(:example, with: ["count"], returns: 1, returns: 2)
+|> allow(:example, fn("count") -> 1 end)
+|> allow(:example, fn("count") -> 2 end)
 
 stub.example("count") # 1
 stub.example("count") # 2
@@ -173,35 +178,41 @@ stub.example("count") # 2
 
 ```elixir
 double = double(ExampleModule)
-|> allow(:example_with_error_type, raises: {RuntimeError, "kaboom!"})
-|> allow(:example_with_message_only, raises: "kaboom!") # defaults to RuntimeError
+|> allow(:example_with_error_type, fn -> raise RuntimeError, "kaboom!" end)
+|> allow(:example_with_error_type, fn -> raise "kaboom!" end)
 ```
 
-### Verifying Doubles
+### Verifying calls
+If you want to verify that a particular stubbed function was actually executed,
+Double ensures that a message is receivable to your test code so you can just use the built-in ExUnit `assert_receive/assert_received`.
+The message is a tuple starting with the function name, and then the arguments received.
+
+```elixir
+stub = double(ExampleModule) |> allow(:example, fn("count") -> 1 end)
+stub.example("count")
+assert_receive({:example, "count"})
+```
+Remember that pattern matching is your friend so you can do all kinds of neat tricks on these messages.
+```elixir
+assert_receive({:example, "c" <> _rest}) # verify starts with "c"
+assert_receive({:example, %{test: 1}) # pattern match map arguments
+assert_receive({:example, x}) # assign an argument to x to verify another way
+assert x == "count"
+# the list goes on ...
+```
+
+### Module Verification
 
 By default when using module doubles, your setups will check the source module to ensure the function exists with the correct arity.
 
 ```elixir
 double(IO)
-|> allow(:non_existent_function, with: [1]) # raises VerifyingDoubleError
+|> allow(:non_existent_function, fn(x) -> x end) # raises VerifyingDoubleError
 ```
 
 ### Struct Key Verification
 
 ```elixir
 double = double(%MyStruct{})
-|> allow(:example, with: ["hello"], returns: "world") # will error if :example is not a key in MyStruct.
-```
-
-### Nested Doubles
-If you want to group some of your stubbed functions in a nested map, that works just like setting any other value in a map.
-```elixir
-double = double
-|> allow(:example)
-|> Map.put(:logger, double
-  |> allow(:info, with: {any: 1}, returns: :ok)
-  |> allow(:error, with: {any: 1}, returns: :ok)
-  |> allow(:warn, with: {any: 1}, returns: :ok)
-)
-double.logger.info.("test") # :ok
+|> allow(:example, fn("hello") -> "world" end) # will error if :example is not a key in MyStruct.
 ```
