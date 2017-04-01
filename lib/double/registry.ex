@@ -1,4 +1,5 @@
 defmodule Double.Registry do
+  @moduledoc false
 
   use GenServer
 
@@ -25,7 +26,8 @@ defmodule Double.Registry do
   end
 
   def register_double(double_id, pid, test_pid, source, opts) do
-    GenServer.call(:registry, {:register_id, double_id, pid, test_pid, source, opts})
+    arg = {:register_id, double_id, pid, test_pid, source, opts}
+    GenServer.call(:registry, arg)
   end
 
   # SERVER
@@ -35,7 +37,8 @@ defmodule Double.Registry do
   end
 
   def handle_call({:whereis_double, double_id}, _from, state) do
-    {double_pid, _, _, _} = Map.get(state, double_id, {:undefined, nil, nil, nil})
+    {double_pid, _, _, _} = state
+    |> Map.get(double_id, {:undefined, nil, nil, nil})
     {:reply, double_pid, state}
   end
 
