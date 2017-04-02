@@ -12,7 +12,7 @@ The package can be installed as:
 
     ```elixir
     def deps do
-      [{:double, "~> 0.3.0", only: :test}]
+      [{:double, "~> 0.4.0", only: :test}]
     end
     ```
 
