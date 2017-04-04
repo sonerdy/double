@@ -4,6 +4,8 @@ It does NOT override behavior of existing modules or functions.
 Double uses Elixir's built-in language features such as pattern matching and message passing to
 give you everything you would normally need a complex mocking tool for.
 
+Checkout [Testing Elixir: The Movie](https://youtu.be/cyU_SFyVRro) for a fun introduction to Double and unit testing in Elixir.
+
 ## Installation
 
 The package can be installed as:
