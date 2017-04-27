@@ -68,6 +68,10 @@ defmodule DoubleTest do
     test "stubs modules" do
       assert double(IO) |> is_atom
     end
+
+    test "stubs erlang modules" do
+      assert double(:application) |> is_atom
+    end
   end
 
   describe "Map doubles" do
@@ -146,6 +150,12 @@ defmodule DoubleTest do
       dbl = double(TestModule, verify: false)
       allow(dbl, :non_existent_function, with: {:any, 1}, returns: 1)
       assert dbl.non_existent_function(1) == 1
+    end
+
+    test "works with erlang modules" do
+      dbl = double(:application, verify: true)
+      |> allow(:loaded_applications, fn -> :ok end)
+      assert dbl.loaded_applications() == :ok
     end
   end
 
