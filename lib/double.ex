@@ -102,7 +102,7 @@ defmodule Double do
         k == function_name && v == stub_arity
       end)
       if matching_function == nil do
-        raise VerifyingDoubleError, message: "The function '#{function_name}/#{stub_arity}' is not defined in TestModuleDouble"
+        raise VerifyingDoubleError, message: "The function '#{function_name}/#{stub_arity}' is not defined in #{inspect dbl}"
       end
     end
     dbl

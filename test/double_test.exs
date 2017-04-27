@@ -141,7 +141,7 @@ defmodule DoubleTest do
     end
 
     test "module doubles are strict by default", %{dbl: dbl} do
-      assert_raise VerifyingDoubleError, "The function 'non_existent_function/1' is not defined in TestModuleDouble", fn ->
+      assert_raise VerifyingDoubleError, ~r/The function 'non_existent_function\/1' is not defined in :TestModuleDouble/, fn ->
         allow(dbl, :non_existent_function, with: {:any, 1}, returns: 1)
       end
     end
