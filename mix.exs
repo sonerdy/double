@@ -1,6 +1,6 @@
 defmodule Double.Mixfile do
   use Mix.Project
-  @version "0.4.2"
+  @version "0.4.3"
 
   def project do
     [app: :double,
@@ -11,6 +11,7 @@ defmodule Double.Mixfile do
      description: description(),
      package: package(),
      deps: deps(),
+     elixirc_paths: elixirc_paths(Mix.env),
      docs: [
        extras: ["README.md"],
        main: "readme",
@@ -26,6 +27,9 @@ defmodule Double.Mixfile do
   def application do
     [applications: [:logger]]
   end
+
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_),     do: ["lib"]
 
   # Dependencies can be Hex packages:
   #

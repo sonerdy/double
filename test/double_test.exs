@@ -13,16 +13,6 @@ defmodule DoubleTest do
               another_function: &:timer.sleep/1
   end
 
-  defmodule TestModule do
-    def io_puts(x), do: x
-    def sleep(x), do: x
-    def process, do: nil
-    def process(x), do: x
-    def process(x, y, z), do: {x,y,z}
-    def another_function,  do: nil
-    def another_function(x), do: x
-  end
-
   defp maps(context) do
     context
     |> Map.merge(%{
