@@ -14,7 +14,7 @@ The package can be installed as:
 
     ```elixir
     def deps do
-      [{:double, "~> 0.5.1", only: :test}]
+      [{:double, "~> 0.6.0", only: :test}]
     end
     ```
 
@@ -40,10 +40,11 @@ defmodule ExampleTest do
   import Double
 
   test "example outputs to console" do
-    inject = double(IO)
+    stub = IO
+    |> double
     |> allow(:puts, fn(_msg) -> :ok end)
 
-    Example.process(inject) # inject the stub module
+    Example.process(stub) # inject the stub module
 
     # now just use the built-in ExUnit methods assert_receive/refute_receive to verify things
     assert_receive({:puts, "It works without mocking libraries"})
@@ -74,11 +75,11 @@ defmodule ExampleTest do
   import Double
 
   test "example test" do
-    inject = double() # by not specifying a module, double defaults to returning a map
+    stub = double() # by not specifying a module, double defaults to returning a map
     |> allow(:puts, fn(_msg) -> :ok end)
     |> allow(:another_service, fn(1, 2, 3) -> :ok end) # requires exactly 1, 2, 3 arguments
 
-    Example.process(inject)
+    Example.process(stub)
 
     # now just use the built-in ExUnit methods assert_receive/refute_receive to verify things
     assert_receive({:puts, "It works without mocking libraries"})
@@ -108,10 +109,11 @@ defmodule ExampleTest do
   import Double
 
   test "example test" do
-    inject = double(%Example.Inject{})
+    stub = %Example.Inject{}
+    |> double
     |> allow(:puts, fn(_msg) -> :ok end)
 
-    Example.process(inject)
+    Example.process(stub)
 
     # now just use the built-in ExUnit methods assert_receive/refute_receive to verify things
     assert_receive({:puts, "It works without mocking libraries"})
@@ -181,7 +183,7 @@ stub.example("count") # 2
 ### Exceptions
 
 ```elixir
-double = double(ExampleModule)
+stub = double(ExampleModule)
 |> allow(:example_with_error_type, fn -> raise RuntimeError, "kaboom!" end)
 |> allow(:example_with_error_type, fn -> raise "kaboom!" end)
 ```
@@ -217,6 +219,23 @@ double(IO)
 ### Struct Key Verification
 
 ```elixir
-double = double(%MyStruct{})
+stub = double(%MyStruct{})
 |> allow(:example, fn("hello") -> "world" end) # will error if :example is not a key in MyStruct.
+```
+
+### Clearing Stubs
+
+Occassionally it's useful to clear the stubs for an existing double. This is useful when you have
+a shared setup and a test needs to change the way a double is stubbed without recreating the whole thing.
+
+```elixir
+stub = IO
+|> double
+|> allow(:puts, fn(_) -> :ok end)
+|> allow(:inspect, fn(_) -> :ok end)
+
+# later
+stub |> clear(:puts) # clear an individual function
+stub |> clear([:puts, :inspect]) # clear a list of functions
+stub |> clear() # clear all functions
 ```
