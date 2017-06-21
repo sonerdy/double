@@ -225,7 +225,7 @@ stub = double(%MyStruct{})
 
 ### Clearing Stubs
 
-Occassionally it's useful to clear the stubs for an existing double. This is useful when you have
+Occasionally it's useful to clear the stubs for an existing double. This is useful when you have
 a shared setup and a test needs to change the way a double is stubbed without recreating the whole thing.
 
 ```elixir
