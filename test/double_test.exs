@@ -147,6 +147,21 @@ defmodule DoubleTest do
       |> allow(:loaded_applications, fn -> :ok end)
       assert dbl.loaded_applications() == :ok
     end
+
+    test "verifies valid behavior doubles" do
+      dbl = TestBehaviour
+      |> double
+      |> allow(:process, fn(nil) -> :ok end)
+
+      assert :ok = dbl.process(nil)
+    end
+
+    test "verifies invalid behaviour doubles" do
+      dbl = TestBehaviour |> double
+      assert_raise VerifyingDoubleError, ~r/The function 'non_existent_function\/1' is not defined in :TestBehaviourDouble/, fn ->
+        allow(dbl, :non_existent_function, fn(_) -> :ok end)
+      end
+    end
   end
 
   test "works normally when called within another process" do
