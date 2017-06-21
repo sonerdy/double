@@ -174,9 +174,7 @@ defmodule Double do
     end)
 
     code = code <> "\nend"
-    Code.compiler_options(ignore_module_conflict: true)
-    Code.eval_string(code)
-    Code.compiler_options(ignore_module_conflict: false)
+    Double.Eval.eval(code)
   end
 
   defp stub_function(double_id, function_name, func) do
