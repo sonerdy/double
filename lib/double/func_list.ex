@@ -14,6 +14,16 @@ defmodule Double.FuncList do
     GenServer.call(pid, {:push, function_name, func})
   end
 
+  def clear(_pid, _function_name \\ nil)
+  def clear(_pid, []), do: :ok
+  def clear(pid, [function_name, function_names]) do
+    clear(pid, function_name)
+    clear(pid, function_names)
+  end
+  def clear(pid, function_name) do
+    GenServer.call(pid, {:clear, function_name})
+  end
+
   def apply(pid, function_name, args) when is_atom(function_name) and is_list(args) do
     state = GenServer.call(pid, :state)
     funcs = state.funcs
@@ -57,6 +67,20 @@ defmodule Double.FuncList do
   def handle_call({:push, function_name, func}, _from, state) do
     state = %FuncList{state | funcs: state.funcs ++ [{function_name, func}]}
     {:reply, :ok, state}
+  end
+
+  def handle_call({:clear, function_name}, _from, state) do
+    state = case function_name do
+      nil -> %FuncList{}
+      _ ->
+        predicate = fn({func_name, _}) -> func_name == function_name end
+        new_funcs = state.funcs
+        |> Enum.reject(predicate)
+        new_applied_funcs = state.applied_funcs
+        |> Enum.reject(predicate)
+        %FuncList{state | funcs: new_funcs, applied_funcs: new_applied_funcs}
+    end
+    {:reply, state, state}
   end
 
   def handle_call({:mark_applied, {func_name, func}}, _from, state) do

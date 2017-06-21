@@ -103,6 +103,37 @@ defmodule KeywordSyntaxTests do
           subject.(inject, :process, [])
         end
       end
+
+      test "clears previous stubs", %{dbl: dbl, subject: subject} do
+        inject = dbl
+        |> allow(:process, with: [], returns: 1)
+        |> clear
+        |> allow(:process, with: [], returns: 2)
+        assert subject.(inject, :process, []) == 2
+      end
+
+      test "clears individual function stubs", %{dbl: dbl, subject: subject} do
+        inject = dbl
+        |> allow(:process, with: [], returns: 1)
+        |> allow(:sleep, with: [1], returns: :ok)
+        |> clear(:process)
+        |> allow(:process, with: [], returns: 2)
+        assert subject.(inject, :process, []) == 2
+        assert subject.(inject, :sleep, [1]) == :ok
+      end
+
+      test "clears list of function stubs", %{dbl: dbl, subject: subject} do
+        inject = dbl
+        |> allow(:process, with: [], returns: 1)
+        |> allow(:sleep, with: [1], returns: :ok)
+        |> allow(:io_puts, with: [1], returns: :ok)
+        |> clear([:process, :sleep])
+        |> allow(:process, with: [], returns: 2)
+        |> allow(:sleep, with: [1], returns: 2)
+        assert subject.(inject, :process, []) == 2
+        assert subject.(inject, :sleep, [1]) == 2
+        assert subject.(inject, :io_puts, [1]) == :ok
+      end
     end
   end
 end

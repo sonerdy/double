@@ -81,6 +81,17 @@ defmodule Double do
     |> do_allow(function_name, func)
   end
 
+  @doc """
+  Clears stubbed functions from a double. By passing no arguments (or nil) all functions will be
+  cleared. A single function name (atom) or a list of function names can also be given.
+  """
+  @spec clear(any, atom | list) :: struct | map | atom
+  def clear(dbl, function_name \\ nil) do
+    double_id = if is_atom(dbl), do: Atom.to_string(dbl), else: dbl._double_id
+    pid = Registry.whereis_double(double_id)
+    GenServer.call(pid, {:clear, dbl, function_name})
+  end
+
   @doc false
   def func_list(pid) do
     GenServer.call(pid, :func_list)
@@ -151,6 +162,12 @@ defmodule Double do
           stub_function(dbl._double_id, function_name, func)
         )
     end
+    {:reply, dbl, state}
+  end
+
+  @doc false
+  def handle_call({:clear, dbl, function_name}, _from, state) do
+    FuncList.clear(state.func_list, function_name)
     {:reply, dbl, state}
   end
 

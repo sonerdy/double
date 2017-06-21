@@ -86,6 +86,37 @@ defmodule FunctionSyntaxTests do
         inject = dbl |> allow(:process, fn -> :rand.uniform end)
         refute subject.(inject, :process, []) == subject.(inject, :process, [])
       end
+
+      test "function syntax clears previous stubs", %{dbl: dbl, subject: subject} do
+        inject = dbl
+        |> allow(:process, fn -> 1 end)
+        |> clear
+        |> allow(:process, fn -> 2 end)
+        assert subject.(inject, :process, []) == 2
+      end
+
+      test "function syntax clears individual function stubs", %{dbl: dbl, subject: subject} do
+        inject = dbl
+        |> allow(:process, fn -> 1 end)
+        |> allow(:sleep, fn(1) -> :ok end)
+        |> clear(:process)
+        |> allow(:process, fn -> 2 end)
+        assert subject.(inject, :process, []) == 2
+        assert subject.(inject, :sleep, [1]) == :ok
+      end
+
+      test "function syntax clears list of function stubs", %{dbl: dbl, subject: subject} do
+        inject = dbl
+        |> allow(:process, fn -> 1 end)
+        |> allow(:sleep, fn(1) -> :ok end)
+        |> allow(:io_puts, fn(1) -> :ok end)
+        |> clear([:process, :sleep])
+        |> allow(:process, fn -> 2 end)
+        |> allow(:sleep, fn(1) -> 2 end)
+        assert subject.(inject, :process, []) == 2
+        assert subject.(inject, :sleep, [1]) == 2
+        assert subject.(inject, :io_puts, [1]) == :ok
+      end
     end
   end
 end

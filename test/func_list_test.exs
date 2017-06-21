@@ -88,4 +88,33 @@ defmodule FuncListTest do
       FuncList.apply(pid, :function_name, [])
     end
   end
+
+  test "clears functions" do
+    {:ok, pid} = GenServer.start_link(FuncList, [])
+    FuncList.push(pid, :function1, fn -> 1 end)
+    FuncList.clear(pid)
+    FuncList.push(pid, :function1, fn -> 2 end)
+    assert FuncList.apply(pid, :function1, []) == 2
+  end
+
+  test "clears individual functions" do
+    {:ok, pid} = GenServer.start_link(FuncList, [])
+    FuncList.push(pid, :function1, fn -> 1 end)
+    FuncList.push(pid, :function2, fn -> 1 end)
+    FuncList.clear(pid, :function1)
+    FuncList.push(pid, :function1, fn -> 2 end)
+    assert FuncList.apply(pid, :function1, []) == 2
+    assert FuncList.apply(pid, :function2, []) == 1
+  end
+
+  test "clears a list of functions" do
+    {:ok, pid} = GenServer.start_link(FuncList, [])
+    FuncList.push(pid, :function1, fn -> 1 end)
+    FuncList.push(pid, :function2, fn -> 1 end)
+    FuncList.clear(pid, [:function1, :function2])
+    FuncList.push(pid, :function1, fn -> 2 end)
+    FuncList.push(pid, :function2, fn -> 2 end)
+    assert FuncList.apply(pid, :function1, []) == 2
+    assert FuncList.apply(pid, :function2, []) == 2
+  end
 end
