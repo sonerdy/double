@@ -20,11 +20,13 @@ The package can be installed as:
 
 ## Usage
 
-### Module Doubles
+### Module/Behaviour Doubles
 
 Module doubles are probably the most straightforward way to use Double.
 You're just creating fake versions of an existing module.
 You can use this module like any other module that you call functions on.
+Module doubles will verify that the module you're creating a double for defines the function you're stubbing with the correct arity.
+If your module defines a behaviour, your stubs will be verified against those callbacks with the same function name and arity checking.
 
 ```elixir
 defmodule Example do

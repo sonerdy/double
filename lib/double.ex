@@ -97,6 +97,12 @@ defmodule Double do
     if double_opts[:verify] do
       source = Registry.source_for("#{dbl}")
       source_functions = source.module_info(:functions)
+      source_functions = case source_functions[:behaviour_info] do
+        nil -> source_functions
+        _ ->
+          behaviours = source.behaviour_info(:callbacks)
+          source_functions |> Keyword.merge(behaviours)
+      end
       stub_arity = :erlang.fun_info(func)[:arity]
       matching_function = Enum.find(source_functions, fn({k, v}) ->
         k == function_name && v == stub_arity
