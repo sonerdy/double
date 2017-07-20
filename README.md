@@ -12,11 +12,11 @@ The package can be installed as:
 
   1. Add `double` to your list of dependencies in `mix.exs`:
 
-    ```elixir
-    def deps do
-      [{:double, "~> 0.6.0", only: :test}]
-    end
-    ```
+  ```elixir
+  def deps do
+    [{:double, "~> 0.6.0", only: :test}]
+  end
+  ```
 
 ## Usage
 
