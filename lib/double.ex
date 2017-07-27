@@ -31,7 +31,6 @@ defmodule Double do
   Same as double/0 but can return structs and modules too
   """
   def double(source, opts \\ @default_options) do
-    Registry.start
     test_pid = self()
     {:ok, pid} = GenServer.start_link(__MODULE__, [])
     double_id = case is_atom(source) do

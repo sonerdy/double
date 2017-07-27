@@ -20,6 +20,13 @@ The package can be installed as:
 
 ## Usage
 
+Start Double in your `test/test_helper.exs` file:
+
+```elixir
+ExUnit.start
+Application.ensure_all_started(:double)
+```
+
 ### Module/Behaviour Doubles
 
 Module doubles are probably the most straightforward way to use Double.
