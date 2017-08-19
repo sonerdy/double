@@ -162,6 +162,20 @@ defmodule DoubleTest do
         allow(dbl, :non_existent_function, fn(_) -> :ok end)
       end
     end
+
+    test "works with modules having macros" do
+      dbl = Logger
+      |> double
+      |> allow(:info, fn(_msg) -> :ok end) # Logger.info/1 is a macro
+
+      assert :ok = dbl.info(nil)
+
+      dbl = Mix.Task
+      |> double
+      |> allow(:run, fn(_, _) -> :ok end)
+
+      assert :ok = dbl.run(nil, nil)
+    end
   end
 
   test "works normally when called within another process" do
