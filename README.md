@@ -14,7 +14,7 @@ The package can be installed as:
 
   ```elixir
   def deps do
-    [{:double, "~> 0.6.1", only: :test}]
+    [{:double, "~> 0.6.2", only: :test}]
   end
   ```
 
