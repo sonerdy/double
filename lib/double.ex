@@ -55,7 +55,7 @@ defmodule Double do
   Structs will fail if they are missing the key given for function_name.
   Modules will fail if the function is not defined.
   """
-  @spec allow(any, atom, [function | [allow_option]]) :: struct | map | atom
+  @spec allow(any, atom, function | [allow_option]) :: struct | map | atom
   def allow(dbl, function_name) when is_atom(function_name), do: allow(dbl, function_name, with: [])
   def allow(dbl, function_name, func_opts) when is_list(func_opts) do
     return_values = Enum.reduce(func_opts, [], fn({k, v}, acc) ->
