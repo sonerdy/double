@@ -16,33 +16,46 @@ defmodule Double.FuncList do
 
   def clear(_pid, _function_name \\ nil)
   def clear(_pid, []), do: :ok
+
   def clear(pid, [function_name, function_names]) do
     clear(pid, function_name)
     clear(pid, function_names)
   end
+
   def clear(pid, function_name) do
     GenServer.call(pid, {:clear, function_name})
   end
 
   def apply(pid, function_name, args) when is_atom(function_name) and is_list(args) do
     state = GenServer.call(pid, :state)
-    funcs = state.funcs
-    |> Enum.filter(fn({func_name, _}) -> func_name == function_name end)
-    applied_funcs = state.applied_funcs
-    |> Enum.filter(fn({func_name, _}) -> func_name == function_name end)
+
+    funcs =
+      state.funcs
+      |> Enum.filter(fn {func_name, _} -> func_name == function_name end)
+
+    applied_funcs =
+      state.applied_funcs
+      |> Enum.filter(fn {func_name, _} -> func_name == function_name end)
+
     verify_function_name_and_arity(funcs ++ applied_funcs, function_name, args)
-    return_value = case try_apply(funcs, args) do
-      :notfound ->
-        case try_apply(applied_funcs, args) do
-          :notfound ->
-            FunctionClauseError
-            |> raise(function: function_name, arity: Enum.count(args))
-          {:ok, return_value, _found} -> return_value
-        end
-      {:ok, return_value, found} ->
-        GenServer.call(pid, {:mark_applied, found})
-        return_value
-    end
+
+    return_value =
+      case try_apply(funcs, args) do
+        :notfound ->
+          case try_apply(applied_funcs, args) do
+            :notfound ->
+              FunctionClauseError
+              |> raise(function: function_name, arity: Enum.count(args))
+
+            {:ok, return_value, _found} ->
+              return_value
+          end
+
+        {:ok, return_value, found} ->
+          GenServer.call(pid, {:mark_applied, found})
+          return_value
+      end
+
     return_value
   end
 
@@ -70,31 +83,46 @@ defmodule Double.FuncList do
   end
 
   def handle_call({:clear, function_name}, _from, state) do
-    state = case function_name do
-      nil -> %FuncList{}
-      _ ->
-        predicate = fn({func_name, _}) -> func_name == function_name end
-        new_funcs = state.funcs
-        |> Enum.reject(predicate)
-        new_applied_funcs = state.applied_funcs
-        |> Enum.reject(predicate)
-        %FuncList{state | funcs: new_funcs, applied_funcs: new_applied_funcs}
-    end
+    state =
+      case function_name do
+        nil ->
+          %FuncList{}
+
+        _ ->
+          predicate = fn {func_name, _} -> func_name == function_name end
+
+          new_funcs =
+            state.funcs
+            |> Enum.reject(predicate)
+
+          new_applied_funcs =
+            state.applied_funcs
+            |> Enum.reject(predicate)
+
+          %FuncList{state | funcs: new_funcs, applied_funcs: new_applied_funcs}
+      end
+
     {:reply, state, state}
   end
 
   def handle_call({:mark_applied, {func_name, func}}, _from, state) do
     new_funcs = List.delete(state.funcs, {func_name, func})
-    state = case new_funcs == state.funcs do
-      true -> state
-      false ->
-        new_applied_funcs = [{func_name, func}] ++ state.applied_funcs
-        %FuncList{state | funcs: new_funcs, applied_funcs: new_applied_funcs}
-    end
+
+    state =
+      case new_funcs == state.funcs do
+        true ->
+          state
+
+        false ->
+          new_applied_funcs = [{func_name, func}] ++ state.applied_funcs
+          %FuncList{state | funcs: new_funcs, applied_funcs: new_applied_funcs}
+      end
+
     {:reply, :ok, state}
   end
 
   defp try_apply([], _args), do: :notfound
+
   defp try_apply([{func_name, func} | funcs], args) do
     {:ok, apply(func, args), {func_name, func}}
   rescue
@@ -104,11 +132,14 @@ defmodule Double.FuncList do
 
   defp verify_function_name_and_arity(all_funcs, function_name, args) do
     needed_arity = Enum.count(args)
-    matches = all_funcs
-    |> Enum.filter(fn({func_name, func}) ->
-      func_arity = :erlang.fun_info(func)[:arity]
-      func_name == function_name and func_arity == needed_arity
-    end)
+
+    matches =
+      all_funcs
+      |> Enum.filter(fn {func_name, func} ->
+        func_arity = :erlang.fun_info(func)[:arity]
+        func_name == function_name and func_arity == needed_arity
+      end)
+
     if Enum.count(matches) == 0 do
       raise UndefinedFunctionError, function: function_name, arity: needed_arity
     end
