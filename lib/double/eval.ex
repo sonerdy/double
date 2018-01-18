@@ -15,6 +15,10 @@ defmodule Double.Eval do
     GenServer.call(__MODULE__, {:eval, code})
   end
 
+  def init(initial) do
+    {:ok, initial}
+  end
+
   def handle_call({:eval, code}, _from, state) do
     Code.compiler_options(ignore_module_conflict: true)
     Code.eval_string(code)
