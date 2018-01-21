@@ -37,12 +37,14 @@ defmodule Double.Registry do
   # SERVER
 
   def init(_) do
-    {:ok, Map.new}
+    {:ok, Map.new()}
   end
 
   def handle_call({:whereis_double, double_id}, _from, state) do
-    {double_pid, _, _, _} = state
-    |> Map.get(double_id, {:undefined, nil, nil, nil})
+    {double_pid, _, _, _} =
+      state
+      |> Map.get(double_id, {:undefined, nil, nil, nil})
+
     {:reply, double_pid, state}
   end
 

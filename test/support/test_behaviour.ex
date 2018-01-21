@@ -1,4 +1,3 @@
 defmodule TestBehaviour do
-  @callback process(String.t) :: :ok
+  @callback process(String.t()) :: :ok
 end
-
