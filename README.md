@@ -26,11 +26,9 @@ Application.ensure_all_started(:double)
 ```
 
 ### Module/Behaviour Doubles
-Module doubles are probably the most straightforward way to use Double.
-You're just creating fake versions of an existing module.
+Double creates a fake module based off of a behaviour or another module.
 You can use this module like any other module that you call functions on.
-Module doubles will verify that the module you're creating a double for defines the function you're stubbing with the correct arity.
-If your module defines a behaviour, your stubs will be verified against those callbacks with the same function name and arity checking.
+Each stub you define will verify that the function name and arity are defined in the target module or behaviour.
 
 ```elixir
 defmodule Example do
@@ -50,7 +48,7 @@ defmodule ExampleTest do
 
     Example.process(stub) # inject the stub module
 
-    # now just use the built-in ExUnit methods assert_receive/refute_receive to verify things
+    # use built-in ExUnit assert_receive/refute_receive to verify things
     assert_receive({:puts, "It works without mocking libraries"})
   end
 end
