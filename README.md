@@ -43,7 +43,7 @@ defmodule ExampleTest do
 
   test "example outputs to console" do
     stub = IO
-    |> double
+    |> double()
     |> allow(:puts, fn(_msg) -> :ok end)
 
     Example.process(stub) # inject the stub module
@@ -71,7 +71,8 @@ stub.ensure_all_started(:logger) # nil
 stub.ensure_all_started(:something) # raises FunctionClauseError
 
 # Stub as many functions as you want
-stub = double(ExampleModule)
+stub = ExampleModule
+|> double()
 |> allow(:add, fn(x, y) -> x + y end)
 |> allow(:subtract, fn(x, y) -> x - y end)
 ```
