@@ -10,7 +10,7 @@ defmodule Double do
   alias Double.FuncList
   use GenServer
 
-  @default_options [verify: true]
+  @default_options [verify: true, send_stubbed_module: false]
 
   @type allow_option ::
           {:with, [...]}
@@ -21,6 +21,25 @@ defmodule Double do
   @type double_option :: {:verify, true | false}
 
   # API
+
+  @spec stub(atom, atom, function) :: atom
+  def stub(dbl), do: double(dbl, Keyword.put(@default_options, :send_stubbed_module, true))
+
+  def stub(dbl, function_name, func) do
+    double_id = Atom.to_string(dbl)
+    pid = Registry.whereis_double(double_id)
+
+    dbl =
+      case pid do
+        :undefined -> stub(dbl)
+        _ -> dbl
+      end
+
+    dbl
+    |> verify_mod_double(function_name, func)
+    |> verify_struct_double(function_name)
+    |> do_allow(function_name, func)
+  end
 
   @spec double :: map
   @spec double(struct, [double_option]) :: struct
@@ -219,13 +238,17 @@ defmodule Double do
         {function_name, arity(func)}
       end)
 
+    opts = Registry.opts_for("#{mod}")
+    stubbed_module = Registry.source_for("#{mod}")
+
     code = """
     defmodule :#{mod} do
     """
 
     code =
       Enum.reduce(funcs, code, fn {function_name, func}, acc ->
-        {signature, message} = function_parts(function_name, func)
+        {signature, message} =
+          function_parts(function_name, func, {opts[:send_stubbed_module], stubbed_module})
 
         acc <>
           """
@@ -241,7 +264,7 @@ defmodule Double do
   end
 
   defp stub_function(double_id, function_name, func) do
-    {signature, message} = function_parts(function_name, func)
+    {signature, message} = function_parts(function_name, func, {false, nil})
 
     func_str = """
     fn(#{signature}) ->
@@ -263,7 +286,7 @@ defmodule Double do
     """
   end
 
-  defp function_parts(function_name, func) do
+  defp function_parts(function_name, func, {send_stubbed_module, stubbed_module}) do
     signature =
       case arity(func) do
         0 ->
@@ -276,8 +299,9 @@ defmodule Double do
       end
 
     message =
-      case signature do
-        "" -> ":#{function_name}"
+      case {send_stubbed_module, signature} do
+        {true, _} -> "{#{atom_to_code_string(stubbed_module)}, :#{function_name}, [#{signature}]}"
+        {false, ""} -> ":#{function_name}"
         _ -> "{:#{function_name}, #{signature}}"
       end
 
@@ -343,5 +367,14 @@ defmodule Double do
 
   defp quoted_fn_body(opts, nil) do
     opts[:returns]
+  end
+
+  defp atom_to_code_string(atom) do
+    atom_str = Atom.to_string(atom)
+
+    case String.downcase(atom_str) do
+      ^atom_str -> ":#{atom_str}"
+      _ -> atom_str
+    end
   end
 end
