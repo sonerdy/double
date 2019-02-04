@@ -6,4 +6,5 @@ defmodule TestModule do
   def process(x, y, z), do: {x, y, z}
   def another_function, do: nil
   def another_function(x), do: x
+  def send(a, b), do: {a, b}
 end
