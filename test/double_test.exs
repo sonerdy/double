@@ -161,6 +161,14 @@ defmodule DoubleTest do
       assert dbl.loaded_applications() == :ok
     end
 
+    test "can override kernel functions" do
+      dbl =
+        double(TestModule)
+        |> allow(:send, fn _, _ -> :ok end)
+
+      assert dbl.send(:a, :b) == :ok
+    end
+
     test "verifies valid behavior doubles" do
       dbl =
         TestBehaviour

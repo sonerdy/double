@@ -187,6 +187,7 @@ defmodule Double do
     code = Enum.reduce(funcs, code, fn({function_name, func}, acc) ->
       {signature, message} = function_parts(function_name, func)
       acc <> """
+        #{unimport_if_needed(function_name, func)}
         def #{function_name}(#{signature}) do
           #{function_body(mod, message, function_name, signature)}
         end
@@ -211,7 +212,7 @@ defmodule Double do
   defp function_body(double_id, message, function_name, signature) do
     """
     test_pid = Double.Registry.whereis_test(\"#{double_id}\")
-    send(test_pid, #{message})
+    Kernel.send(test_pid, #{message})
     pid = Double.Registry.whereis_double(\"#{double_id}\")
     func_list = Double.func_list(pid)
     Double.FuncList.apply(func_list, :#{function_name}, [#{signature}])
@@ -232,6 +233,12 @@ defmodule Double do
       _ -> "{:#{function_name}, #{signature}}"
     end
     {signature, message}
+  end
+
+  defp unimport_if_needed(function_name, func) do
+    if Enum.member?(Kernel.__info__(:functions), {function_name, func_arity = arity(func)}) do
+      "import Kernel, except: [#{function_name}: #{func_arity}]"
+    end
   end
 
   defp arity(func) do
