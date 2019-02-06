@@ -6,7 +6,7 @@ defmodule FuncListTest do
     {:ok, pid} = GenServer.start_link(FuncList, [])
 
     assert_raise UndefinedFunctionError,
-                 "function nil.function_name/1 is undefined or private",
+                 ~r[function nil.function_name/1 is undefined],
                  fn ->
                    FuncList.apply(pid, :function_name, [1])
                  end
@@ -17,7 +17,7 @@ defmodule FuncListTest do
     FuncList.push(pid, :function_name, fn _x, _y, _z -> 1 end)
 
     assert_raise UndefinedFunctionError,
-                 "function nil.function_name/1 is undefined or private",
+                 ~r[function nil.function_name/1 is undefined],
                  fn ->
                    FuncList.apply(pid, :function_name, [1])
                  end
