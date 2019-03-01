@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+set -e
+
+mix format mix.exs "lib/**/*.{ex,exs}" "test/**/*.{ex,exs}" --check-formatted
+mix test

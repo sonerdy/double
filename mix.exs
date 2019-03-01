@@ -3,22 +3,23 @@ defmodule Double.Mixfile do
   @version "0.6.6"
 
   def project do
-    [app: :double,
-     version: @version,
-     elixir: "~> 1.3",
-     build_embedded: Mix.env == :prod,
-     start_permanent: Mix.env == :prod,
-     description: description(),
-     package: package(),
-     deps: deps(),
-     elixirc_paths: elixirc_paths(Mix.env),
-     docs: [
-       extras: ["README.md"],
-       main: "readme",
-       source_ref: "v#{@version}",
-       source_url: "https://github.com/sonerdy/double",
-     ]
-   ]
+    [
+      app: :double,
+      version: @version,
+      elixir: "~> 1.3",
+      build_embedded: Mix.env() == :prod,
+      start_permanent: Mix.env() == :prod,
+      description: description(),
+      package: package(),
+      deps: deps(),
+      elixirc_paths: elixirc_paths(Mix.env()),
+      docs: [
+        extras: ["README.md"],
+        main: "readme",
+        source_ref: "v#{@version}",
+        source_url: "https://github.com/sonerdy/double"
+      ]
+    ]
   end
 
   # Configuration for the OTP application
@@ -32,7 +33,7 @@ defmodule Double.Mixfile do
   end
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
-  defp elixirc_paths(_),     do: ["lib"]
+  defp elixirc_paths(_), do: ["lib"]
 
   # Dependencies can be Hex packages:
   #
@@ -47,7 +48,7 @@ defmodule Double.Mixfile do
     [
       {:ex_doc, ">= 0.0.0", only: :dev},
       {:dialyxir, "~> 0.4", only: [:dev], runtime: false},
-      {:credo, "~> 0.7.2", only: [:dev], runtime: false},
+      {:credo, "~> 0.7.2", only: [:dev], runtime: false}
     ]
   end
 
@@ -59,12 +60,16 @@ defmodule Double.Mixfile do
   end
 
   defp package do
-    [# These are the default files included in the package
-     name: :double,
-     files: ["lib", "mix.exs", "README*", "LICENSE*"],
-     maintainers: ["Brandon Joyce"],
-     licenses: ["MIT"],
-     links: %{"GitHub" => "https://github.com/sonerdy/double",
-      "Docs" => "https://github.com/sonerdy/double"}]
+    # These are the default files included in the package
+    [
+      name: :double,
+      files: ["lib", "mix.exs", "README*", "LICENSE*"],
+      maintainers: ["Brandon Joyce"],
+      licenses: ["MIT"],
+      links: %{
+        "GitHub" => "https://github.com/sonerdy/double",
+        "Docs" => "https://github.com/sonerdy/double"
+      }
+    ]
   end
 end

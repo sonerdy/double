@@ -8,8 +8,8 @@ defmodule KeywordSyntaxTests do
       end
 
       test "keyword syntax stubs functions", %{dbl: dbl, subject: subject} do
-        inject = allow(dbl, :process, with: [1,2,3], returns: 1)
-        assert subject.(inject, :process, [1,2,3]) == 1
+        inject = allow(dbl, :process, with: [1, 2, 3], returns: 1)
+        assert subject.(inject, :process, [1, 2, 3]) == 1
         assert_receive({:process, 1, 2, 3})
 
         inject = allow(inject, :another_function, with: [], returns: :anything)
@@ -18,18 +18,23 @@ defmodule KeywordSyntaxTests do
       end
 
       test "keyword syntax allows multiple calls", %{dbl: dbl, subject: subject} do
-        inject = allow(dbl, :process, with: [1,2,3], returns: 1)
+        inject = allow(dbl, :process, with: [1, 2, 3], returns: 1)
         assert subject.(inject, :process, [1, 2, 3]) == 1
         assert subject.(inject, :process, [1, 2, 3]) == 1
       end
 
-      test "keyword syntax allows subsequent calls to return new values", %{dbl: dbl, subject: subject} do
-        inject = allow(dbl, :process,
-          with: [1,2,3],
-          returns: 1,
-          returns: 2,
-          returns: 3
-        )
+      test "keyword syntax allows subsequent calls to return new values", %{
+        dbl: dbl,
+        subject: subject
+      } do
+        inject =
+          allow(dbl, :process,
+            with: [1, 2, 3],
+            returns: 1,
+            returns: 2,
+            returns: 3
+          )
+
         assert subject.(inject, :process, [1, 2, 3]) == 1
         assert subject.(inject, :process, [1, 2, 3]) == 2
         assert subject.(inject, :process, [1, 2, 3]) == 3
@@ -37,7 +42,7 @@ defmodule KeywordSyntaxTests do
       end
 
       test "keyword syntax with no return value is nil", %{dbl: dbl, subject: subject} do
-        inject = allow(dbl, :process, with: [1,2,3])
+        inject = allow(dbl, :process, with: [1, 2, 3])
         assert subject.(inject, :process, [1, 2, 3]) == nil
       end
 
@@ -46,9 +51,14 @@ defmodule KeywordSyntaxTests do
         assert subject.(inject, :process, [1, 2, 3]) == 1
       end
 
-      test "keyword syntax stubbing specific arguments works in tandem with {:any, x}", %{dbl: dbl, subject: subject} do
-        inject = allow(dbl, :process, with: {:any, 3}, returns: 1)
-        |> allow(:process, with: [1,2,3], returns: 2)
+      test "keyword syntax stubbing specific arguments works in tandem with {:any, x}", %{
+        dbl: dbl,
+        subject: subject
+      } do
+        inject =
+          allow(dbl, :process, with: {:any, 3}, returns: 1)
+          |> allow(:process, with: [1, 2, 3], returns: 2)
+
         assert subject.(inject, :process, [1, 2, 3]) == 1
         assert subject.(inject, :process, [1, 2, 3]) == 2
         assert subject.(inject, :process, [1, 1, 1]) == 1
@@ -59,26 +69,36 @@ defmodule KeywordSyntaxTests do
         assert subject.(inject, :process, []) == 1
       end
 
-      test "keyword syntax without arguments setup defaults to none required", %{dbl: dbl, subject: subject} do
+      test "keyword syntax without arguments setup defaults to none required", %{
+        dbl: dbl,
+        subject: subject
+      } do
         inject = dbl |> allow(:process, returns: :ok)
         assert subject.(inject, :process, []) == :ok
       end
 
       test "keyword syntax allows out of order calls", %{dbl: dbl, subject: subject} do
-        inject = dbl
-        |> allow(:process, with: [1], returns: 1)
-        |> allow(:process, with: [2], returns: 2)
-        |> allow(:process, with: [3], returns: 3)
+        inject =
+          dbl
+          |> allow(:process, with: [1], returns: 1)
+          |> allow(:process, with: [2], returns: 2)
+          |> allow(:process, with: [3], returns: 3)
+
         assert subject.(inject, :process, [2]) == 2
         assert subject.(inject, :process, [1]) == 1
         assert subject.(inject, :process, [3]) == 3
         assert subject.(inject, :process, [3]) == 3
       end
 
-      test "keyword syntax does not overwrite existing setup with same args", %{dbl: dbl, subject: subject} do
-        inject = dbl
-        |> allow(:process, with: [1], returns: 1)
-        |> allow(:process, with: [1], returns: 2)
+      test "keyword syntax does not overwrite existing setup with same args", %{
+        dbl: dbl,
+        subject: subject
+      } do
+        inject =
+          dbl
+          |> allow(:process, with: [1], returns: 1)
+          |> allow(:process, with: [1], returns: 2)
+
         assert subject.(inject, :process, [1]) == 1
         assert subject.(inject, :process, [1]) == 2
       end
@@ -90,8 +110,12 @@ defmodule KeywordSyntaxTests do
         assert subject.(inject2, :process, []) == 2
       end
 
-      test "keyword syntax sets up exceptions with a type of exception", %{dbl: dbl, subject: subject} do
+      test "keyword syntax sets up exceptions with a type of exception", %{
+        dbl: dbl,
+        subject: subject
+      } do
         inject = dbl |> allow(:process, with: [], raises: {RuntimeError, "boom"})
+
         assert_raise RuntimeError, "boom", fn ->
           subject.(inject, :process, [])
         end
@@ -99,37 +123,44 @@ defmodule KeywordSyntaxTests do
 
       test "keyword syntax sets up exceptions with only a message", %{dbl: dbl, subject: subject} do
         inject = dbl |> allow(:process, with: [], raises: "boom")
+
         assert_raise RuntimeError, "boom", fn ->
           subject.(inject, :process, [])
         end
       end
 
       test "clears previous stubs", %{dbl: dbl, subject: subject} do
-        inject = dbl
-        |> allow(:process, with: [], returns: 1)
-        |> clear
-        |> allow(:process, with: [], returns: 2)
+        inject =
+          dbl
+          |> allow(:process, with: [], returns: 1)
+          |> clear
+          |> allow(:process, with: [], returns: 2)
+
         assert subject.(inject, :process, []) == 2
       end
 
       test "clears individual function stubs", %{dbl: dbl, subject: subject} do
-        inject = dbl
-        |> allow(:process, with: [], returns: 1)
-        |> allow(:sleep, with: [1], returns: :ok)
-        |> clear(:process)
-        |> allow(:process, with: [], returns: 2)
+        inject =
+          dbl
+          |> allow(:process, with: [], returns: 1)
+          |> allow(:sleep, with: [1], returns: :ok)
+          |> clear(:process)
+          |> allow(:process, with: [], returns: 2)
+
         assert subject.(inject, :process, []) == 2
         assert subject.(inject, :sleep, [1]) == :ok
       end
 
       test "clears list of function stubs", %{dbl: dbl, subject: subject} do
-        inject = dbl
-        |> allow(:process, with: [], returns: 1)
-        |> allow(:sleep, with: [1], returns: :ok)
-        |> allow(:io_puts, with: [1], returns: :ok)
-        |> clear([:process, :sleep])
-        |> allow(:process, with: [], returns: 2)
-        |> allow(:sleep, with: [1], returns: 2)
+        inject =
+          dbl
+          |> allow(:process, with: [], returns: 1)
+          |> allow(:sleep, with: [1], returns: :ok)
+          |> allow(:io_puts, with: [1], returns: :ok)
+          |> clear([:process, :sleep])
+          |> allow(:process, with: [], returns: 2)
+          |> allow(:sleep, with: [1], returns: 2)
+
         assert subject.(inject, :process, []) == 2
         assert subject.(inject, :sleep, [1]) == 2
         assert subject.(inject, :io_puts, [1]) == :ok

@@ -4,6 +4,8 @@ elixir:
 otp_release:
   - '18.2.1'
 
+script: ./script/ci
+
 matrix:
   include:
     - elixir: '1.4'
