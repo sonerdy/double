@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+set -e
+
+# Only check formatting for latest Elixir version
+format_elixir_version="Elixir 1.8"
+current_elixir_version=$(elixir -v)
+if [[ $current_elixir_version == *$format_elixir_version* ]]
+then
+  mix format mix.exs "lib/**/*.{ex,exs}" "test/**/*.{ex,exs}" --check-formatted
+fi
+
+mix test
