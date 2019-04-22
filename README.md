@@ -45,7 +45,7 @@ defmodule ExampleTest do
     Example.process(io_stub) # inject the stub module
 
     # use built-in ExUnit assert_receive/refute_receive to verify things
-    assert_receive({IO, :puts, "It works without mocking libraries!"})
+    assert_receive({IO, :puts, ["It works without mocking libraries!"]})
   end
 end
 ```
@@ -107,13 +107,13 @@ The message is a 3-tuple `{module, :function, [arg1, arg2]}`and .
 dbl = ExampleModule
 |> stub(:example, fn("count") -> 1 end)
 dbl.example("count")
-assert_receive({ExampleModule, :example, "count"})
+assert_receive({ExampleModule, :example, ["count"]})
 ```
 Remember that pattern matching is your friend so you can do all kinds of neat tricks on these messages.
 ```elixir
-assert_receive({ExampleModule, :example, "c" <> _rest}) # verify starts with "c"
-assert_receive({ExampleModule, :example, %{test: 1}) # pattern match map arguments
-assert_receive({ExampleModule, :example, x}) # assign an argument to x to verify another way
+assert_receive({ExampleModule, :example, ["c" <> _rest]}) # verify starts with "c"
+assert_receive({ExampleModule, :example, [%{test: 1}]) # pattern match map arguments
+assert_receive({ExampleModule, :example, [x]}) # assign an argument to x to verify another way
 assert x == "count"
 ```
 
