@@ -21,18 +21,22 @@ defmodule Double do
 
   def spy(target) do
     target.module_info(:functions)
-    |> Enum.reject(fn({k, _}) ->
-      [:__info__, :module_info] |> Enum.member?(k)
-        || String.starts_with?("#{k}", "_")
-        || String.starts_with?("#{k}", "-")
+    |> Enum.reject(fn {k, _} ->
+      [:__info__, :module_info] |> Enum.member?(k) ||
+        String.starts_with?("#{k}", "_") ||
+        String.starts_with?("#{k}", "-")
     end)
-    |> Enum.reduce(stub(target), fn({func, arity}, dbl) ->
+    |> Enum.reduce(stub(target), fn {func, arity}, dbl ->
       args = SpyHelper.create_args(target, arity)
-      {f, _} = quote do
-        fn(unquote_splicing(args)) ->
-          apply(unquote(target), unquote(func), [unquote_splicing(args)])
+
+      {f, _} =
+        quote do
+          fn unquote_splicing(args) ->
+            apply(unquote(target), unquote(func), [unquote_splicing(args)])
+          end
         end
-    end |> Code.eval_quoted()
+        |> Code.eval_quoted()
+
       stub(dbl, func, f)
     end)
   end

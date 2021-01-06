@@ -14,7 +14,8 @@ defmodule SpyTest do
     spy =
       TestModule
       |> spy()
-      #|> stub(:process, fn 1, 2, 3 -> 1 end)
+
+    # |> stub(:process, fn 1, 2, 3 -> 1 end)
 
     assert spy.process(1, 2, 3) == {1, 2, 3}
     assert_receive({TestModule, :process, [1, 2, 3]})
@@ -28,8 +29,8 @@ defmodule SpyTest do
 
     assert spy.process(1, 2, 3) == {1, 2, 3}
     assert spy.process(3, 2, 1) == {3, 2, 1}
-    assert_receive({TestModule, :process, [1,2,3]})
-    assert_receive({TestModule, :process, [3,2,1]})
+    assert_receive({TestModule, :process, [1, 2, 3]})
+    assert_receive({TestModule, :process, [3, 2, 1]})
   end
 
   test "allows subsequent stubbing of functions" do
