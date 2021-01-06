@@ -23,6 +23,14 @@ ExUnit.start
 Application.ensure_all_started(:double)
 ```
 
+- [Intro](#modulebehaviour-doubles)
+- Stubs
+    - [Basics](#basics)
+    - [Advanced Return Values](#different-return-values-for-different-arguments)
+    - [Exceptions](#exceptions)
+    - [Verifying Calls](#verifying-calls)
+- [Spies](#spies)
+
 ### Module/Behaviour Doubles
 Double creates a fake module based off of a behaviour or module.
 You can use this module like any other module that you call functions on.
@@ -138,3 +146,33 @@ dbl |> clear(:puts) # clear an individual function
 dbl |> clear([:puts, :inspect]) # clear a list of functions
 dbl |> clear() # clear all functions
 ```
+
+### Spies
+Everything that works on stubs should pretty much work on spies, but the spy just automatically defaults to using the implementation of the module you're spying.
+
+Say you have already written a stub of some kind for the `IO` module:
+```
+defmodule IOStub do
+  def write(filename, content) do
+    "really bad example of writing a file"
+  end
+end
+```
+Now in your tests you can utilize this stub and "attach" spying behavior like so:
+```
+test "spying on modules works" do
+  # use spy/1 instead of stub
+  spy = spy(IOStub)
+
+  # The spy works just like the stub you defined.
+  assert spy.write("anything", "anything") == "really bad example of writing a file"
+
+  # But it also gives you this!
+  assert_receive {IOStub, :write, ["anything", "anything"]}
+
+  # The spy can also be stubbed if you want to override a specific function while leaving others
+  stub(spy, :write, fn(_, _) -> :stubbed end)
+  assert spy.write("anything", "anything") == :ok
+end
+```
+

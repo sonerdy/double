@@ -6,8 +6,7 @@ defmodule Double do
   give you everything you would normally need a complex mocking tool for.
   """
 
-  alias Double.Registry
-  alias Double.FuncList
+  alias Double.{FuncList, Registry, SpyHelper}
   use GenServer
 
   @default_options [verify: true, send_stubbed_module: false]
@@ -20,7 +19,27 @@ defmodule Double do
              | {atom, String.t()}}
   @type double_option :: {:verify, true | false}
 
-  # API
+  def spy(target) do
+    target.module_info(:functions)
+    |> Enum.reject(fn {k, _} ->
+      [:__info__, :module_info] |> Enum.member?(k) ||
+        String.starts_with?("#{k}", "_") ||
+        String.starts_with?("#{k}", "-")
+    end)
+    |> Enum.reduce(stub(target), fn {func, arity}, dbl ->
+      args = SpyHelper.create_args(target, arity)
+
+      {f, _} =
+        quote do
+          fn unquote_splicing(args) ->
+            apply(unquote(target), unquote(func), [unquote_splicing(args)])
+          end
+        end
+        |> Code.eval_quoted()
+
+      stub(dbl, func, f)
+    end)
+  end
 
   @spec stub(atom, atom, function) :: atom
   def stub(dbl), do: double(dbl, Keyword.put(@default_options, :send_stubbed_module, true))
