@@ -8,7 +8,6 @@ defmodule Double.Application do
 
     children = [
       worker(Double.Registry, []),
-      worker(Double.Eval, [])
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one)
