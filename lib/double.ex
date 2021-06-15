@@ -146,18 +146,18 @@ defmodule Double do
   def clear(dbl, function_name \\ nil) do
     double_id = if is_atom(dbl), do: Atom.to_string(dbl), else: dbl._double_id
     pid = Registry.whereis_double(double_id)
-    GenServer.call(pid, {:clear, dbl, function_name})
+    GenServer.call(pid, {:clear, dbl, function_name}, :infinity)
   end
 
   @doc false
   def func_list(pid) do
-    GenServer.call(pid, :func_list)
+    GenServer.call(pid, :func_list, :infinity)
   end
 
   defp do_allow(dbl, function_name, func) do
     double_id = if is_atom(dbl), do: Atom.to_string(dbl), else: dbl._double_id
     pid = Registry.whereis_double(double_id)
-    GenServer.call(pid, {:allow, dbl, function_name, func})
+    GenServer.call(pid, {:allow, dbl, function_name, func}, :infinity)
   end
 
   defp verify_mod_double(dbl, function_name, func) when is_atom(dbl) do

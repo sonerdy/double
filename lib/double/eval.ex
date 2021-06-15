@@ -12,7 +12,7 @@ defmodule Double.Eval do
   end
 
   def eval(code) do
-    GenServer.call(__MODULE__, {:eval, code})
+    GenServer.call(__MODULE__, {:eval, code}, :infinity)
   end
 
   def init(initial) do

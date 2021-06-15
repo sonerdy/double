@@ -14,24 +14,24 @@ defmodule Double.Registry do
   end
 
   def whereis_double(double_id) do
-    GenServer.call(:registry, {:whereis_double, double_id})
+    GenServer.call(:registry, {:whereis_double, double_id}, :infinity)
   end
 
   def whereis_test(double_id) do
-    GenServer.call(:registry, {:whereis_test, double_id})
+    GenServer.call(:registry, {:whereis_test, double_id}, :infinity)
   end
 
   def source_for(double_id) do
-    GenServer.call(:registry, {:source_for, double_id})
+    GenServer.call(:registry, {:source_for, double_id}, :infinity)
   end
 
   def opts_for(double_id) do
-    GenServer.call(:registry, {:opts_for, double_id})
+    GenServer.call(:registry, {:opts_for, double_id}, :infinity)
   end
 
   def register_double(double_id, pid, test_pid, source, opts) do
     arg = {:register_id, double_id, pid, test_pid, source, opts}
-    GenServer.call(:registry, arg)
+    GenServer.call(:registry, arg, :infinity)
   end
 
   # SERVER

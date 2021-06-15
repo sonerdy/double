@@ -11,7 +11,7 @@ defmodule Double.FuncList do
   end
 
   def push(pid, function_name, func) when is_function(func) and is_atom(function_name) do
-    GenServer.call(pid, {:push, function_name, func})
+    GenServer.call(pid, {:push, function_name, func}, :infinity)
   end
 
   def clear(_pid, _function_name \\ nil)
@@ -23,11 +23,11 @@ defmodule Double.FuncList do
   end
 
   def clear(pid, function_name) do
-    GenServer.call(pid, {:clear, function_name})
+    GenServer.call(pid, {:clear, function_name}, :infinity)
   end
 
   def apply(pid, function_name, args) when is_atom(function_name) and is_list(args) do
-    state = GenServer.call(pid, :state)
+    state = GenServer.call(pid, :state, :infinity)
 
     funcs =
       state.funcs
@@ -52,7 +52,7 @@ defmodule Double.FuncList do
           end
 
         {:ok, return_value, found} ->
-          GenServer.call(pid, {:mark_applied, found})
+          GenServer.call(pid, {:mark_applied, found}, :infinity)
           return_value
       end
 
@@ -60,11 +60,11 @@ defmodule Double.FuncList do
   end
 
   def list(pid) do
-    GenServer.call(pid, :list)
+    GenServer.call(pid, :list, :infinity)
   end
 
   def state(pid) do
-    GenServer.call(pid, :state)
+    GenServer.call(pid, :state, :infinity)
   end
 
   # SERVER
