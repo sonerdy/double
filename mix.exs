@@ -18,7 +18,8 @@ defmodule Double.Mixfile do
         main: "readme",
         source_ref: "v#{@version}",
         source_url: "https://github.com/sonerdy/double"
-      ]
+      ],
+      xref: [exclude: [:crypto]]
     ]
   end
 
