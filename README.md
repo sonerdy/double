@@ -120,7 +120,7 @@ assert_receive({ExampleModule, :example, ["count"]})
 Remember that pattern matching is your friend so you can do all kinds of neat tricks on these messages.
 ```elixir
 assert_receive({ExampleModule, :example, ["c" <> _rest]}) # verify starts with "c"
-assert_receive({ExampleModule, :example, [%{test: 1}]) # pattern match map arguments
+assert_receive({ExampleModule, :example, [%{test: 1}]}) # pattern match map arguments
 assert_receive({ExampleModule, :example, [x]}) # assign an argument to x to verify another way
 assert x == "count"
 ```
